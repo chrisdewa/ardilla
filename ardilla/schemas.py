@@ -17,7 +17,7 @@ FIELD_MAPPING = {
 }
 
 def get_tablename(model: type[BaseModel]) -> str:
-    return model.__name__.lower()
+    return getattr(model, '__tablename__', model.__name__.lower())
 
 def get_fields(model: type[BaseModel]) -> str:
     

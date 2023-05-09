@@ -18,7 +18,7 @@ class Model(BaseModel):
         if not hasattr(cls, '__schema__'):
             cls.__schema__ = make_schema(cls)
         
-        if not hasattr( cls, '__tablename__'):
+        if not hasattr(cls, '__tablename__'):
             tablename = get_tablename(cls)
             setattr(cls, '__tablename__', tablename)
         
