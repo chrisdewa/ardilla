@@ -1,6 +1,7 @@
 foo*
 *.db
 *config.toml
+.pypirc
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

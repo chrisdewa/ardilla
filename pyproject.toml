@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ardilla"
-version = "0.0.1"
+version = "0.0.1-alpha"
 authors = [
   { name="ChrisDewa", email="chrisdewa@duck.com" },
 ]
@@ -15,13 +15,14 @@ classifiers = [
   "Programming Language :: Python :: 3",
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
+  "Development Status :: 3 - Alpha",
 ]
 dependencies = [
-  'pydantic==1.10.7',
+  "pydantic==1.10.7",
 ]
 
 [project.optional-dependencies]
-async = ['aiosqlite==0.19.0',]
+async = ["aiosqlite==0.19.0",]
 
 
 [project.urls]
