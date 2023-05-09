@@ -65,10 +65,10 @@ def main():
 ## To-dos
 
 - [ ] Docstring everything using Google format
+- [ ] Add testing
 - [ ] Add proper documentation
   - propper as in a site with how to use
 - [x] Add a schema generator 
   - There should be a method to generate a table's schema off the pydantic model. 
 - [ ] Add a method somewhere to fetch relationships. 
-- [ ] Add examples
 - [ ] Improve this readme
