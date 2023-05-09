@@ -40,7 +40,7 @@ def main():
     # get or none
     user = user_crud.get_or_none(id=1)
     # get or create
-    user2, was_created = user_crud(id=2, name='chris', age=35)
+    user2, was_created = user_crud.get_or_create(id=2, name='chris', age=35)
     # save one
     user3 = User(id=3, name='moni', age=35)
     user_crud.save_one(user3)
