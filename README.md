@@ -1,27 +1,39 @@
 # ardilla
 
+<div style="text-align:center">
+  <img 
+    src="https://images-ext-2.discordapp.net/external/sxevZWKA4UIZWNyt352zkHLGWrUMw_PV_jGWLXGPh_I/https/repository-images.githubusercontent.com/638528340/a0238c4e-addf-4130-a0fe-9a458be6cdc9?width=200&height=150"
+  >  
+</div>
+
 Ardilla (pronounced *ahr-dee-yah*) means "**SQ**uirre**L**" in spanish.
 
 A very simple library to quickly add SQLite to your program.
 It leverages pydantic for data validation and modeling.
 It comes in sync (sqlite3) and async (aiosqlite) flavors.
 
+## Who and what is this for:
+
+The target audience for this library are developers who want to incorporate a SQLite database to their applications in a fast and easy way. 
+
+What this library excels in simplicity it lacks in flexibility so, if you're expecting to use complex queries and intricate relationships, you should should consider other libraries like [tortoise-orm](https://github.com/tortoise/tortoise-orm), [sqlalchemy](https://github.com/sqlalchemy/sqlalchemy), [pony](https://github.com/ponyorm/pony) or [peewee](https://github.com/coleifer/peewee).
+
 
 ## install
-Install directly from github
-__**Without asynchronous support**__
+Install lastest release from PyPi
+```bash
+pip install -U ardilla´
+pip install -U ardilla[async]
+```
+
+Or install the lastest changes directly from github
 ```bash
 pip install git+https://github.com/chrisdewa/ardilla.git
-```
-__**With asynchronous support**__
-```bash
 pip install git+https://github.com/chrisdewa/ardilla.git#egg=ardilla[async]
 ```
 
+
 ## How to use:
-
-**This section is greatly underdeveloped**
-
 ```py
 from ardilla import Engine, Model, Crud
 
@@ -72,4 +84,4 @@ def main():
 - [x] Add a schema generator 
   - There should be a method to generate a table's schema off the pydantic model. 
 - [ ] Add a method somewhere to fetch relationships. 
-- [ ] Improve this readme
+- [ ] Improve this read
