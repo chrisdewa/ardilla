@@ -1,8 +1,12 @@
 
+import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
-import sqlite3
+
+import pytest
+
 from ardilla import Engine, Model, Crud
+from ardilla.errors import QueryExecutionError
 
 
 path = Path(__file__).parent
@@ -50,6 +54,21 @@ def test_create():
             res = cur.fetchall()
         
         assert len(res) == 4, 'Mistmatch created vs found'
+        
+        try:
+            crud.insert(id=1, name='john', age=34)
+        except QueryExecutionError:
+            pass
+        else:
+            raise Exception('QueryExcecutionError should have been rised')
+        
+        u = crud.insert_or_ignore(id=1, name='john', age=34)
+        assert u is None, 'Record 1 already exists but was somehow re-inserted'
+        
+        u = crud.insert_or_ignore(name='john', age=34)
+        assert u is not None and u.name == 'john', 'Bad user was created'
+            
+            
 
 def test_read():
     with cleanup() as crud:

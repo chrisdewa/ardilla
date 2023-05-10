@@ -8,3 +8,6 @@ class ModelIntegrityError(BaseDBException):
 
 class MissingEngine(BaseDBException):
     pass
+
+class QueryExecutionError(BaseDBException):
+    pass

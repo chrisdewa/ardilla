@@ -52,6 +52,7 @@ def main():
 
 ## Supported CRUD methods:
  - `crud.get_or_none` Returns an object or None
+ - `crud.insert` Inserts a record, rises errors if there's a conflict
  - `crud.insert_or_ignore` Inserts a record or silently ignores if it already exists
  - `crud.get_or_create` returns an tuple of the object and a bool, True if the object was newly created
  - `crud.get_all` equivalent to `SELECT * FROM tablename`

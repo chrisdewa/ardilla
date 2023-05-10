@@ -1,10 +1,8 @@
 from __future__ import annotations
 import sqlite3
-from typing import Generic
 
 from .models import M
 
-Crud = Generic()
 
 class ContextCursor:
     def __init__(self, con: sqlite3.Connection):

@@ -1,15 +1,16 @@
+import sqlite3
 from typing import Literal, Generic, Self
 
 from .engine import Engine
 from .abc import CrudABC
 from .models import M, Model as BaseModel
-from .errors import MissingEngine
+from .errors import QueryExecutionError
 
 
 class Crud(CrudABC, Generic[M]):
     """Abstracts CRUD actions for model associated tables"""
 
-    def _get_or_none_any(self, many: bool, **kws):
+    def _get_or_none_any(self, many: bool, **kws) -> list[M] | M | None:
         """
         private helper to the get_or_none queries.
         if param "many" is true it will return a list of matches else will return only one record
@@ -23,31 +24,53 @@ class Crud(CrudABC, Generic[M]):
             with self.engine.cursor(con) as cur:
                 cur.execute(q, vals)
                 if many:
-                    result = cur.fetchall()
-                    return [self.Model(**entry) for entry in result]
+                    results: list[dict] = cur.fetchall()
+                    return [self.Model(**entry) for entry in results]
                 else:
-                    result = cur.fetchone()
+                    result: dict = cur.fetchone()
                     if result:
                         return self.Model(**result)
+        return
 
 
     def get_or_none(self, **kws) -> M | None:
         """Gets an object from a database or None if not found"""
         return self._get_or_none_any(many=False, **kws)
-
-    def insert_or_ignore(self, **kws) -> M | None:
-        """inserts a the object of a row or ignores it if it already exists"""
+    
+    def _do_insert(self, ignore: bool = False, returning: bool = True, / , **kws):
         keys, vals = zip(*kws.items())
         placeholders = ", ".join("?" * len(keys))
         cols = ", ".join(keys)
-        q = f"INSERT OR IGNORE INTO {self.tablename} ({cols}) VALUES ({placeholders}) RETURNING *;"
+        
+        q = "INSERT OR IGNORE " if ignore else "INSERT "
+        q += f"INTO {self.tablename} ({cols}) VALUES ({placeholders})"
+        q += " RETURNING *;" if returning else ";"
+        
         with self.engine as con:
             with self.engine.cursor(con) as cur:
-                cur.execute(q, vals)
+                try:
+                    cur.execute(q, vals)
+                except sqlite3.IntegrityError as e:
+                    raise QueryExecutionError(str(e)) 
+                    
                 result = cur.fetchone()
                 con.commit()
-                if result:
+                if returning and result:
                     return self.Model(**result)
+    
+    def insert(self, **kws):
+        """
+        Inserts a record into the database.
+        Returns:
+            Model | None: Returns a model only if newly created
+        Rises: 
+            ardilla.error.QueryExecutionError: if there's a conflict when inserting the record
+        """
+        return self._do_insert(False, True, **kws)
+
+    def insert_or_ignore(self, **kws) -> M | None:
+        """inserts a the object of a row or ignores it if it already exists"""
+        return self._do_insert(True, True, **kws)
         
 
     def get_or_create(self, **kws) -> tuple[M, bool]:
@@ -105,7 +128,9 @@ class Crud(CrudABC, Generic[M]):
         id_cols = tuple([k for k in obj_dict if "id" in k])
         placeholders = ", ".join(f"{k} = ?" for k in id_cols)
         vals = tuple([obj_dict[k] for k in id_cols])
-        q = f"DELETE FROM {self.tablename} WHERE ({placeholders});"
+        q = f"""
+        DELETE FROM {self.tablename} WHERE ({placeholders});
+        """
         with self.engine as con:
             con.execute(q, vals)
             con.commit()

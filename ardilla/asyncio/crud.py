@@ -1,7 +1,10 @@
 from typing import Literal, Generic, Self
 
+import aiosqlite
+
 from .engine import AsyncEngine
 
+from ..errors import QueryExecutionError
 from ..models import M
 from ..abc import CrudABC
 
@@ -36,19 +39,45 @@ class AsyncCrud(CrudABC, Generic[M]):
         """Gets an object from a database or None if not found"""
         return await self._get_or_none_any(many=False, **kws)
 
-    async def insert_or_ignore(self, **kws) -> M | None:
-        """inserts a the object of a row or ignores it if it already exists"""
+    async def _do_insert(self, ignore: bool = False, returning: bool = True, / , **kws):
         keys, vals = zip(*kws.items())
         placeholders = ", ".join("?" * len(keys))
         cols = ", ".join(keys)
-        q = f"INSERT OR IGNORE INTO {self.tablename} ({cols}) VALUES ({placeholders}) RETURNING *;"
-
+        
+        q = "INSERT OR IGNORE " if ignore else "INSERT "
+        q += f"INTO {self.tablename} ({cols}) VALUES ({placeholders})"
+        q += " RETURNING *;" if returning else ";"
+        
         async with self.engine as con:
-            async with con.execute(q, vals) as cur:
+            con = await self.engine.connect()
+            cur = None
+            try:
+                cur = await con.execute(q, vals)
+            except aiosqlite.IntegrityError as e:
+                raise QueryExecutionError(str(e))
+            else:
                 result = await cur.fetchone()
                 await con.commit()
-                if result:
+                if returning and result:
                     return self.Model(**result)
+            finally:
+                if cur is not None:
+                    await cur.close()
+                await con.close()
+    
+    async def insert(self, **kws):
+        """
+        Inserts a record into the database.
+        Returns:
+            Model | None: Returns a model only if newly created
+        Rises: 
+            ardilla.error.QueryExecutionError: if there's a conflict when inserting the record
+        """
+        return await self._do_insert(False, True, **kws)
+
+    async def insert_or_ignore(self, **kws) -> M | None:
+        """inserts a the object of a row or ignores it if it already exists"""
+        return await self._do_insert(True, True, **kws)
 
     async def get_or_create(self, **kws) -> tuple[M, bool]:
         """Returns object and bool indicated if it was created or not"""

@@ -5,12 +5,15 @@ from ..models import M
 from ..engine import Engine
 
 class AsyncEngine(Engine):
-        
-    async def __aenter__(self) -> aiosqlite.Connection:
+    
+    async def connect(self) -> aiosqlite.Connection:
         con = await aiosqlite.connect(self.path)
         con.row_factory = aiosqlite.Row
-        self.con = con
         return con
+        
+    async def __aenter__(self) -> aiosqlite.Connection:
+        self.con = await self.connect()
+        return self.con
 
     async def __aexit__(self, *_):
         await self.con.close()

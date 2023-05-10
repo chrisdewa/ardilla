@@ -7,6 +7,7 @@ import pytest
 
 from ardilla import Model
 from ardilla.asyncio import Engine, Crud
+from ardilla.errors import QueryExecutionError
 
 
 path = Path(__file__).parent
@@ -54,6 +55,19 @@ async def test_create():
             res = cur.fetchall()
         
         assert len(res) == 4, 'Mistmatch created vs found'
+        
+        try:
+            await crud.insert(id=1, name='john', age=34)
+        except QueryExecutionError:
+            pass
+        else:
+            raise Exception('QueryExcecutionError should have been rised')
+        
+        u = await crud.insert_or_ignore(id=1, name='john', age=34)
+        assert u is None, 'Record 1 already exists but was somehow re-inserted'
+        
+        u = await crud.insert_or_ignore(name='john', age=34)
+        assert u is not None and u.name == 'john', 'Bad user was created'
         
 @pytest.mark.asyncio
 async def test_read():
