@@ -1,4 +1,5 @@
 import sqlite3
+from sqlite3 import Row
 from typing import Literal, Generic, Self
 
 from .engine import Engine
@@ -19,23 +20,19 @@ class Crud(CrudABC, Generic[M]):
         to_match = f" AND ".join(f"{k} = ?" for k in keys)
 
         limit = 'LIMIT 1;' if not many else ';'
-        q = f"SELECT * FROM {self.tablename} WHERE ({to_match}) {limit}"
+        q = f"SELECT rowid, * FROM {self.tablename} WHERE ({to_match}) {limit}"
         with self.engine as con:
             with self.engine.cursor(con) as cur:
                 cur.execute(q, vals)
                 if many:
-                    results: list[dict] = cur.fetchall()
-                    return [self.Model(**entry) for entry in results]
+                    rows: list[Row] = cur.fetchall()
+                    return [self._row2obj(row) for row in rows]
                 else:
-                    result: dict = cur.fetchone()
-                    if result:
-                        return self.Model(**result)
+                    row: Row | None = cur.fetchone()
+                    if row:
+                        return self._row2obj(row)
         return
 
-
-    def get_or_none(self, **kws) -> M | None:
-        """Gets an object from a database or None if not found"""
-        return self._get_or_none_any(many=False, **kws)
     
     def _do_insert(self, ignore: bool = False, returning: bool = True, / , **kws):
         keys, vals = zip(*kws.items())
@@ -53,10 +50,14 @@ class Crud(CrudABC, Generic[M]):
                 except sqlite3.IntegrityError as e:
                     raise QueryExecutionError(str(e)) 
                     
-                result = cur.fetchone()
+                row = cur.fetchone()
                 con.commit()
-                if returning and result:
-                    return self.Model(**result)
+                if returning and row:
+                    return self._row2obj(row, cur.lastrowid)
+                
+    def get_or_none(self, **kws) -> M | None:
+        """Gets an object from a database or None if not found"""
+        return self._get_or_none_any(many=False, **kws)
     
     def insert(self, **kws):
         """

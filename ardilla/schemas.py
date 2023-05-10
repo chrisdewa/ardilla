@@ -30,8 +30,8 @@ def get_fields(model: type[BaseModel]) -> str:
         
         out = f'    {field.name} {type_}'
         if field.name == 'id' and type_ == 'INTEGER':
-            out += ' PRIMARY KEY AUTOINCREMENT'
-        if field.required and not out.endswith('AUTOINCREMENT'):
+            out += ' PRIMARY KEY'
+        if field.required and not out.endswith('KEY'):
             out += ' NOT NULL'
         if field.default is not None:
             out += f' DEFAULT {field.default!r}'

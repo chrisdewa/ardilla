@@ -1,15 +1,16 @@
 from typing import TypeVar
-from pydantic import BaseModel
+from pydantic import BaseModel, PrivateAttr
 
 from .schemas import make_schema, FIELD_MAPPING, get_tablename
 from .errors import ModelIntegrityError
 
 
 class Model(BaseModel):
+    __rowid__: int | None = PrivateAttr(default = None)
     __tablename__: str # will default to the lowercase name of the subclass
     __schema__: str # best effort will be made if it's missing
                     # there's no support for constrains or foreign fields
-        
+
     def __init_subclass__(cls, **kws) -> None:
         for field in cls.__fields__.values():
             if field.type_ not in FIELD_MAPPING:

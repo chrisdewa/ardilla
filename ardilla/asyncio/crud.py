@@ -59,7 +59,9 @@ class AsyncCrud(CrudABC, Generic[M]):
                 result = await cur.fetchone()
                 await con.commit()
                 if returning and result:
-                    return self.Model(**result)
+                    item =  self.Model(**result)
+                    item.__rowid__ = cur.lastrowid
+                    return item
             finally:
                 if cur is not None:
                     await cur.close()

@@ -1,5 +1,6 @@
 from typing import Generic, Self, Literal
 from abc import abstractmethod, ABC
+from sqlite3 import Row
 
 from .errors import MissingEngine
 from .engine import Engine
@@ -31,6 +32,25 @@ class CrudABC(ABC):
                 "or pass it as an argument."
             )
         return super().__new__(cls)
+
+    def _row2obj(self, row: Row, rowid: int = None) -> M:
+        """
+        Args:
+            row: the sqlite row
+            rowid: the rowid of the row. 
+                If passed it means it comes from an insert function
+                meaning the rowid
+        """
+        [*keys] = self.Model.__fields__
+        if rowid is None:
+            rowid, *vals = row
+        else:
+            vals = list(row)
+        data = {k:v for k,v in zip(keys, vals)}
+
+        obj = self.Model(**data)
+        obj.__rowid__ = rowid
+        return obj
         
     # Create
     @abstractmethod        

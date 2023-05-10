@@ -7,7 +7,7 @@ class User(Model):
 tablename = 'user'
 schema = """
 CREATE TABLE IF NOT EXISTS user (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY,
     name TEXT NOT NULL
 );
 """
