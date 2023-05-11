@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, date
 from pydantic import BaseModel
 
@@ -45,3 +46,12 @@ def make_schema(Model: type[BaseModel]) -> str:
     return SCHEMA_TEMPLATE.format(
         tablename=get_tablename(Model), fields=get_fields(Model)
     )
+
+
+def get_pk(schema: str) -> str | None:
+    # Check if the schema contains a primary key definition
+    if "PRIMARY KEY" in schema:
+        # Use a regular expression to extract the primary key column name
+        match = re.search(r'(?i)\b(\w+)\b\s+(?:\w+\s+)*PRIMARY\s+KEY', schema)
+        if match:
+            return match.group(1)

@@ -97,11 +97,19 @@ class Crud(CrudABC, Generic[M]):
     def save_one(self, obj: M) -> Literal[True]:
         """Saves one object to the database"""
         cols, vals = zip(*obj.dict().items())
-        placeholders = ", ".join("?" * len(cols))
 
-        upsert_query = f"""
-        INSERT OR REPLACE INTO {self.tablename} ({', '.join(cols)}) VALUES ({placeholders});
-        """
+        if obj.__rowid__ is not None:
+            upsert_query = f"""
+            UPDATE {self.tablename} SET ({', '.join(f'{k} = ?' for k in cols)}) WHERE rowid = ?;
+            """
+            vals += obj.__rowid__
+
+        else:
+            placeholders = ", ".join("?" * len(cols))
+            upsert_query = f"""
+            INSERT OR REPLACE INTO {self.tablename} ({', '.join(cols)}) VALUES ({placeholders});
+            """
+
         with self.engine as con:
             con.execute(upsert_query, vals)
             con.commit()
