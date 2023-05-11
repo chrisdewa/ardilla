@@ -6,6 +6,7 @@ import pytest
 
 from ardilla import Engine, Model, Crud
 from ardilla.errors import QueryExecutionError
+from pydantic import Field
 
 
 path = Path(__file__).parent
@@ -13,7 +14,7 @@ db = path / "testdb.sqlite"
 
 
 class User(Model):
-    id: int
+    id: int = Field(primary=True)
     name: str
     age: int
 

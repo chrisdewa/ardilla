@@ -1,6 +1,7 @@
 import re
 from datetime import datetime, date
 from pydantic import BaseModel
+from .errors import ModelIntegrityError
 
 
 SCHEMA_TEMPLATE = "CREATE TABLE IF NOT EXISTS {tablename} (\n{fields}\n);"
@@ -28,11 +29,16 @@ def get_fields(model: type[BaseModel]) -> str:
             raise TypeError(f'Unrecognized sqlite type "{field.type_}"')
 
         type_ = FIELD_MAPPING[field.type_]
-
+        pk = getattr(model, '__pk__', None)
+        field_is_pk = field.field_info.extra.get('primary') or field.field_info.extra.get('primary_key')
+        if field_is_pk and pk and field.name != pk:
+            raise ModelIntegrityError(f'field {field.name} is marked as pk, but __pk__ points to other field.')
         out = f"    {field.name} {type_}"
-        if field.name == "id" and type_ == "INTEGER":
+        if pk == field.name or field_is_pk:
             out += " PRIMARY KEY"
-        if field.required and not out.endswith("KEY"):
+            if field.field_info.extra.get('autoincrement'):
+                out += ' AUTOINCREMENT'
+        if field.required and not "PRIMARY KEY" in out:
             out += " NOT NULL"
         if field.default is not None:
             out += f" DEFAULT {field.default!r}"

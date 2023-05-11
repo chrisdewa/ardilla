@@ -1,4 +1,4 @@
-from typing import TypeVar
+from typing import TypeVar, Annotated
 from pydantic import BaseModel, PrivateAttr
 
 from .schemas import make_schema, FIELD_MAPPING, get_tablename, get_pk
@@ -7,7 +7,7 @@ from .errors import ModelIntegrityError
 
 class Model(BaseModel):
     __rowid__: int | None = PrivateAttr(default=None)
-    __pk__: str | None = PrivateAttr(default=None)
+    __pk__: str | None # tells the model which key to idenfity as primary
     __tablename__: str  # will default to the lowercase name of the subclass
     __schema__: str  # best effort will be made if it's missing
     # there's no support for constrains or foreign fields yet but you can
@@ -24,7 +24,7 @@ class Model(BaseModel):
         if not hasattr(cls, "__schema__"):
             cls.__schema__ = make_schema(cls)
         
-        cls.__pk__ =  get_pk(cls.__schema__)
+        cls.__pk__ = get_pk(cls.__schema__)
 
         if not hasattr(cls, "__tablename__"):
             tablename = get_tablename(cls)

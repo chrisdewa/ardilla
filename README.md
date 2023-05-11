@@ -22,26 +22,31 @@ What this library excels in simplicity it lacks in flexibility so, if you're exp
 ## install
 Install lastest release from PyPi
 ```bash
-pip install -U ardilla´
+pip install -U ardilla
 pip install -U ardilla[async]
+pip install -U ardilla[dev]
 ```
+- async instaslls aiosqlite
+- dev installs formatting and testing dependencies
 
 Or install the lastest changes directly from github
 ```bash
 pip install git+https://github.com/chrisdewa/ardilla.git
 pip install git+https://github.com/chrisdewa/ardilla.git#egg=ardilla[async]
+pip install git+https://github.com/chrisdewa/ardilla.git#egg=ardilla[dev]
 ```
 
 
 ## How to use:
 ```py
 from ardilla import Engine, Model, Crud
+from pydantic import Field
 
 engine = Engine('db.sqlite3')
 Crud.engine = engine
 
 class User(Model):
-    id: int
+    id: int = Field(primary=True, autoincrement=True) 
     name: str
     age: int
 
