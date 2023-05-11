@@ -1,6 +1,7 @@
 from typing import Literal, Generic, Self
 
 import aiosqlite
+from aiosqlite import Row
 
 from .engine import AsyncEngine
 
@@ -13,7 +14,7 @@ class AsyncCrud(CrudABC, Generic[M]):
     """Abstracts CRUD actions for model associated tables"""
     engine: AsyncEngine
     
-    async def _get_or_none_any(self, many: bool, **kws):
+    async def _get_or_none_any(self, many: bool, **kws) -> list[M] | M | None:
         """
         private helper to the get_or_none queries.
         if param "many" is true it will return a list of matches else will return only one record
@@ -22,18 +23,19 @@ class AsyncCrud(CrudABC, Generic[M]):
         to_match = f" AND ".join(f"{k} = ?" for k in keys)
 
         limit = 'LIMIT 1;' if not many else ';'
-        q = f"SELECT * FROM {self.tablename} WHERE ({to_match}) {limit}"
+        q = f"SELECT rowid, * FROM {self.tablename} WHERE ({to_match}) {limit}"
 
         async with self.engine as con:
             async with con.execute(q, vals) as cur:
                 if many:
-                    result = await cur.fetchall()
-                    return [self.Model(**entry) for entry in result]
+                    rows: list[Row] = await cur.fetchall()
+                    return [self._row2obj(row) for row in rows]
 
                 else:
-                    result = await cur.fetchone()
-                    if result:
-                        return self.Model(**result)
+                    row: Row | None = await cur.fetchone()
+                    if row:
+                        return self._row2obj(row)
+        return
 
     async def get_or_none(self, **kws) -> M | None:
         """Gets an object from a database or None if not found"""
@@ -56,12 +58,10 @@ class AsyncCrud(CrudABC, Generic[M]):
             except aiosqlite.IntegrityError as e:
                 raise QueryExecutionError(str(e))
             else:
-                result = await cur.fetchone()
+                row = await cur.fetchone()
                 await con.commit()
-                if returning and result:
-                    item =  self.Model(**result)
-                    item.__rowid__ = cur.lastrowid
-                    return item
+                if returning and row:
+                    return self._row2obj(row, cur.lastrowid)
             finally:
                 if cur is not None:
                     await cur.close()

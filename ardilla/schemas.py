@@ -20,7 +20,6 @@ def get_tablename(model: type[BaseModel]) -> str:
     return getattr(model, '__tablename__', model.__name__.lower())
 
 def get_fields(model: type[BaseModel]) -> str:
-    
     fields = []
     for field in model.__fields__.values():
         if field.type_ not in FIELD_MAPPING:

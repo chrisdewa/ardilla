@@ -51,7 +51,7 @@ class CrudABC(ABC):
         obj = self.Model(**data)
         obj.__rowid__ = rowid
         return obj
-        
+    
     # Create
     @abstractmethod        
     def _do_insert(self, ignore: bool = False, returning: bool = True, / , **kws): pass
