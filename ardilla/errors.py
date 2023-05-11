@@ -1,4 +1,3 @@
-
 class BaseDBException(Exception):
     pass
 
@@ -6,8 +5,10 @@ class BaseDBException(Exception):
 class ModelIntegrityError(BaseDBException):
     pass
 
+
 class MissingEngine(BaseDBException):
     pass
+
 
 class QueryExecutionError(BaseDBException):
     pass

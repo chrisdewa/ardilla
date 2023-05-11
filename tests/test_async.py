@@ -1,4 +1,3 @@
-
 import sqlite3
 from contextlib import contextmanager, asynccontextmanager
 from pathlib import Path
@@ -11,12 +10,14 @@ from ardilla.errors import QueryExecutionError
 
 
 path = Path(__file__).parent
-db = path / 'testdb.sqlite' 
+db = path / "testdb.sqlite"
+
 
 class User(Model):
     id: int
     name: str
     age: int
+
 
 @asynccontextmanager
 async def cleanup():
@@ -30,6 +31,7 @@ async def cleanup():
     finally:
         db.unlink(missing_ok=True)
 
+
 @contextmanager
 def query():
     try:
@@ -40,80 +42,84 @@ def query():
         cur.close()
         con.close()
 
+
 @pytest.mark.asyncio
 async def test_create():
     async with cleanup() as crud:
-        chris = User(id=1, name='chris', age=35)
-        moni = User(id=2, name='moni', age=36)
-        elena = User(id=3, name='elena', age=5)
+        chris = User(id=1, name="chris", age=35)
+        moni = User(id=2, name="moni", age=36)
+        elena = User(id=3, name="elena", age=5)
         await crud.save_many(chris, moni, elena)
-        fran = User(id=4, name='fran', age=1)
+        fran = User(id=4, name="fran", age=1)
         await crud.save_one(fran)
-        
+
         with query() as cur:
-            cur.execute('SELECT * FROM user;')
+            cur.execute("SELECT * FROM user;")
             res = cur.fetchall()
-        
-        assert len(res) == 4, 'Mistmatch created vs found'
-        
+
+        assert len(res) == 4, "Mistmatch created vs found"
+
         try:
-            await crud.insert(id=1, name='john', age=34)
+            await crud.insert(id=1, name="john", age=34)
         except QueryExecutionError:
             pass
         else:
-            raise Exception('QueryExcecutionError should have been rised')
-        
-        u = await crud.insert_or_ignore(id=1, name='john', age=34)
-        assert u is None, 'Record 1 already exists but was somehow re-inserted'
-        
-        u = await crud.insert_or_ignore(name='john', age=34)
-        assert u is not None and u.name == 'john', 'Bad user was created'
-        
+            raise Exception("QueryExcecutionError should have been rised")
+
+        u = await crud.insert_or_ignore(id=1, name="john", age=34)
+        assert u is None, "Record 1 already exists but was somehow re-inserted"
+
+        u = await crud.insert_or_ignore(name="john", age=34)
+        assert u is not None and u.name == "john", "Bad user was created"
+
+
 @pytest.mark.asyncio
 async def test_read():
     async with cleanup() as crud:
-        chris = User(id=1, name='chris', age=35)
-        chris2 = User(id=2, name='chris', age=36)
-        elena = User(id=3, name='elena', age=5)
+        chris = User(id=1, name="chris", age=35)
+        chris2 = User(id=2, name="chris", age=36)
+        elena = User(id=3, name="elena", age=5)
         await crud.save_many(chris, chris2, elena)
-        
+
         users = await crud.get_all()
-        assert len(users) == 3, 'Wrong number of read users from get_all'
-        users = await crud.get_many(name='chris')
-        assert len(users) == 2, 'wrong number of users from get_many'
+        assert len(users) == 3, "Wrong number of read users from get_all"
+        users = await crud.get_many(name="chris")
+        assert len(users) == 2, "wrong number of users from get_many"
         u = await crud.get_or_none(id=1)
-        assert u == chris, 'bad user found'
+        assert u == chris, "bad user found"
         u = await crud.get_or_none(id=5)
-        assert u is None, 'bad user not found'
-        u,c = await crud.get_or_create(name='fran', age=1)
-        assert c is True, 'Bad created value'
-        assert u == User(id=4, name='fran', age=1), 'bad created user'
-        u,c = await crud.get_or_create(id=3)
-        assert u == elena, 'bad user found'
-        assert c is False, 'Bad not created value'
-        
+        assert u is None, "bad user not found"
+        u, c = await crud.get_or_create(name="fran", age=1)
+        assert c is True, "Bad created value"
+        assert u == User(id=4, name="fran", age=1), "bad created user"
+        u, c = await crud.get_or_create(id=3)
+        assert u == elena, "bad user found"
+        assert c is False, "Bad not created value"
+
+
 @pytest.mark.asyncio
 async def test_update():
     async with cleanup() as crud:
-        chris = User(id=1, name='chris', age=35)
-        moni = User(id=2, name='moni', age=36)
+        chris = User(id=1, name="chris", age=35)
+        moni = User(id=2, name="moni", age=36)
         await crud.save_many(chris, moni)
         chris.age = 40
         await crud.save_one(chris)
         u = await crud.get_or_none(**chris.dict())
-        assert u is not None, 'user not updated'
+        assert u is not None, "user not updated"
         chris.age = 45
         moni.age = 50
         await crud.save_many(chris, moni)
         u = await crud.get_or_none(**moni.dict())
-        assert u is not None, 'User not updated on many'
-        
+        assert u is not None, "User not updated on many"
+
+
 @pytest.mark.asyncio
 async def test_delete():
     async with cleanup() as crud:
-        chris = User(id=1, name='chris', age=35)
-        moni = User(id=2, name='moni', age=36)
-        elena = User(id=3, name='elena', age=5)
+        chris = User(id=1, name="chris", age=35)
+        moni = User(id=2, name="moni", age=36)
+        elena = User(id=3, name="elena", age=5)
         await crud.save_many(chris, moni, elena)
         await crud.delete_one(moni)
         users = await crud.get_all()

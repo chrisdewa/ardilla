@@ -19,7 +19,7 @@ class Crud(CrudABC, Generic[M]):
         keys, vals = zip(*kws.items())
         to_match = f" AND ".join(f"{k} = ?" for k in keys)
 
-        limit = 'LIMIT 1;' if not many else ';'
+        limit = "LIMIT 1;" if not many else ";"
         q = f"SELECT rowid, * FROM {self.tablename} WHERE ({to_match}) {limit}"
         with self.engine as con:
             with self.engine.cursor(con) as cur:
@@ -33,38 +33,37 @@ class Crud(CrudABC, Generic[M]):
                         return self._row2obj(row)
         return
 
-    
-    def _do_insert(self, ignore: bool = False, returning: bool = True, / , **kws):
+    def _do_insert(self, ignore: bool = False, returning: bool = True, /, **kws):
         keys, vals = zip(*kws.items())
         placeholders = ", ".join("?" * len(keys))
         cols = ", ".join(keys)
-        
+
         q = "INSERT OR IGNORE " if ignore else "INSERT "
         q += f"INTO {self.tablename} ({cols}) VALUES ({placeholders})"
         q += " RETURNING *;" if returning else ";"
-        
+
         with self.engine as con:
             with self.engine.cursor(con) as cur:
                 try:
                     cur.execute(q, vals)
                 except sqlite3.IntegrityError as e:
-                    raise QueryExecutionError(str(e)) 
-                    
+                    raise QueryExecutionError(str(e))
+
                 row = cur.fetchone()
                 con.commit()
                 if returning and row:
                     return self._row2obj(row, cur.lastrowid)
-                
+
     def get_or_none(self, **kws) -> M | None:
         """Gets an object from a database or None if not found"""
         return self._get_or_none_any(many=False, **kws)
-    
+
     def insert(self, **kws):
         """
         Inserts a record into the database.
         Returns:
             Model | None: Returns a model only if newly created
-        Rises: 
+        Rises:
             ardilla.error.QueryExecutionError: if there's a conflict when inserting the record
         """
         return self._do_insert(False, True, **kws)
@@ -72,7 +71,6 @@ class Crud(CrudABC, Generic[M]):
     def insert_or_ignore(self, **kws) -> M | None:
         """inserts a the object of a row or ignores it if it already exists"""
         return self._do_insert(True, True, **kws)
-        
 
     def get_or_create(self, **kws) -> tuple[M, bool]:
         """Returns object and bool indicated if it was created or not"""
@@ -91,11 +89,11 @@ class Crud(CrudABC, Generic[M]):
                 cur.execute(q)
                 results = cur.fetchall()
                 return [self.Model(**res) for res in results]
-        
+
     def get_many(self, **kws) -> list[M]:
         """Returns a list of objects that have the given conditions"""
         return self._get_or_none_any(many=True, **kws)
-    
+
     def save_one(self, obj: M) -> Literal[True]:
         """Saves one object to the database"""
         cols, vals = zip(*obj.dict().items())
@@ -117,7 +115,7 @@ class Crud(CrudABC, Generic[M]):
         with self.engine as con:
             con.executemany(q, vals)
             con.commit()
-            
+
         return True
 
     def delete_one(self, obj: M) -> Literal[True]:
@@ -135,7 +133,7 @@ class Crud(CrudABC, Generic[M]):
         with self.engine as con:
             con.execute(q, vals)
             con.commit()
-        
+
         return True
 
     def delete_many(self, *objs: M) -> Literal[True]:

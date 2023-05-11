@@ -12,8 +12,9 @@ from ..abc import CrudABC
 
 class AsyncCrud(CrudABC, Generic[M]):
     """Abstracts CRUD actions for model associated tables"""
+
     engine: AsyncEngine
-    
+
     async def _get_or_none_any(self, many: bool, **kws) -> list[M] | M | None:
         """
         private helper to the get_or_none queries.
@@ -22,7 +23,7 @@ class AsyncCrud(CrudABC, Generic[M]):
         keys, vals = zip(*kws.items())
         to_match = f" AND ".join(f"{k} = ?" for k in keys)
 
-        limit = 'LIMIT 1;' if not many else ';'
+        limit = "LIMIT 1;" if not many else ";"
         q = f"SELECT rowid, * FROM {self.tablename} WHERE ({to_match}) {limit}"
 
         async with self.engine as con:
@@ -41,15 +42,15 @@ class AsyncCrud(CrudABC, Generic[M]):
         """Gets an object from a database or None if not found"""
         return await self._get_or_none_any(many=False, **kws)
 
-    async def _do_insert(self, ignore: bool = False, returning: bool = True, / , **kws):
+    async def _do_insert(self, ignore: bool = False, returning: bool = True, /, **kws):
         keys, vals = zip(*kws.items())
         placeholders = ", ".join("?" * len(keys))
         cols = ", ".join(keys)
-        
+
         q = "INSERT OR IGNORE " if ignore else "INSERT "
         q += f"INTO {self.tablename} ({cols}) VALUES ({placeholders})"
         q += " RETURNING *;" if returning else ";"
-        
+
         async with self.engine as con:
             con = await self.engine.connect()
             cur = None
@@ -66,13 +67,13 @@ class AsyncCrud(CrudABC, Generic[M]):
                 if cur is not None:
                     await cur.close()
                 await con.close()
-    
+
     async def insert(self, **kws):
         """
         Inserts a record into the database.
         Returns:
             Model | None: Returns a model only if newly created
-        Rises: 
+        Rises:
             ardilla.error.QueryExecutionError: if there's a conflict when inserting the record
         """
         return await self._do_insert(False, True, **kws)

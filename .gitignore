@@ -2,6 +2,7 @@ foo*
 *.db
 *config.toml
 .pypirc
+.vscode/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
