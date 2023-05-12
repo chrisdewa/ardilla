@@ -11,7 +11,9 @@ app = FastAPI(docs_url="/")  # set the docs to index for easier access
 
 
 class Item(Model):
-    id: int = Field(primary=True) # this sets the id as primary key in the default schema
+    id: int = Field(
+        primary=True
+    )  # this sets the id as primary key in the default schema
     name: str
     price: float
 
@@ -22,8 +24,7 @@ class PatchedItem(BaseModel):
 
 
 engine = Engine("fastapi_app.sqlite3")
-Crud.engine = engine  # this sets the engine for all crud instances
-crud: Crud[Item] = Crud(Item)  # the typehint enables ide autocomplete
+crud = engine.crud(Item)
 
 
 @app.on_event("startup")
