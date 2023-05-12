@@ -7,18 +7,7 @@ from ..errors import QueryExecutionError
 from ..models import M
 from ..abc import CrudABC
 
-
-class AbstractAsyncEngine:
-    """This just provides autocompletition across the library"""
-
-    async def __aenter__(self) -> aiosqlite.Connection:
-        ...
-
-    async def cursor(self, con: aiosqlite.Connection) -> aiosqlite.Cursor:
-        ...
-
-    async def connect(self) -> aiosqlite.Connection:
-        ...
+from .abc import AbstractAsyncEngine
 
 
 class AsyncCrud(CrudABC, Generic[M]):

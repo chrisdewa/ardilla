@@ -9,6 +9,16 @@ from .models import M, Model as BaseModel
 E = TypeVar("E")  # Engine Type
 
 
+class AbstractEngine(ABC):
+    """This just provides autocompletition across the library"""
+    @abstractmethod
+    def __enter__(self) -> sqlite3.Connection:
+        ...
+    abstractmethod
+    def cursor(self, con: sqlite3.Connection) -> sqlite3.Cursor:
+        ...
+
+
 class CrudABC(ABC):
     def __init__(self, Model: type[M], engine: E | None = None) -> None:
         if engine:

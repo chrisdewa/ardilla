@@ -3,6 +3,7 @@ import sqlite3
 
 from .models import M
 from .crud import Crud
+from .abc import AbstractEngine
 
 class ContextCursor:
     def __init__(self, con: sqlite3.Connection):
@@ -16,7 +17,7 @@ class ContextCursor:
         self.cur.close()
 
 
-class Engine:
+class Engine(AbstractEngine):
     def __init__(self, path: str):
         self.path = path
         self.schemas: set[str] = set()

@@ -5,8 +5,10 @@ from .crud import AsyncCrud
 from ..models import M
 from ..engine import Engine
 
+from .abc import AbstractAsyncEngine
 
-class AsyncEngine(Engine):
+
+class AsyncEngine(Engine, AbstractAsyncEngine):
     async def connect(self) -> aiosqlite.Connection:
         con = await aiosqlite.connect(self.path)
         con.row_factory = aiosqlite.Row

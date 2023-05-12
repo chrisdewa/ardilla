@@ -2,19 +2,9 @@ import sqlite3
 from sqlite3 import Row
 from typing import Literal, Generic, Self
 
-from .abc import CrudABC
+from .abc import CrudABC, AbstractEngine
 from .models import M, Model as BaseModel
 from .errors import QueryExecutionError
-
-
-class AbstractEngine:
-    """This just provides autocompletition across the library"""
-
-    def __enter__(self) -> sqlite3.Connection:
-        ...
-
-    def cursor(self, con: sqlite3.Connection) -> sqlite3.Cursor:
-        ...
 
 
 class Crud(CrudABC, Generic[M]):
