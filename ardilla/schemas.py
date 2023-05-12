@@ -29,15 +29,19 @@ def get_fields(model: type[BaseModel]) -> str:
             raise TypeError(f'Unrecognized sqlite type "{field.type_}"')
 
         type_ = FIELD_MAPPING[field.type_]
-        pk = getattr(model, '__pk__', None)
-        field_is_pk = field.field_info.extra.get('primary') or field.field_info.extra.get('primary_key')
+        pk = getattr(model, "__pk__", None)
+        field_is_pk = field.field_info.extra.get(
+            "primary"
+        ) or field.field_info.extra.get("primary_key")
         if field_is_pk and pk and field.name != pk:
-            raise ModelIntegrityError(f'field {field.name} is marked as pk, but __pk__ points to other field.')
+            raise ModelIntegrityError(
+                f"field {field.name} is marked as pk, but __pk__ points to other field."
+            )
         out = f"    {field.name} {type_}"
         if pk == field.name or field_is_pk:
             out += " PRIMARY KEY"
-            if field.field_info.extra.get('autoincrement'):
-                out += ' AUTOINCREMENT'
+            if field.field_info.extra.get("autoincrement"):
+                out += " AUTOINCREMENT"
         if field.required and not "PRIMARY KEY" in out:
             out += " NOT NULL"
         if field.default is not None:
@@ -58,6 +62,6 @@ def get_pk(schema: str) -> str | None:
     # Check if the schema contains a primary key definition
     if "PRIMARY KEY" in schema:
         # Use a regular expression to extract the primary key column name
-        match = re.search(r'(?i)\b(\w+)\b\s+(?:\w+\s+)*PRIMARY\s+KEY', schema)
+        match = re.search(r"(?i)\b(\w+)\b\s+(?:\w+\s+)*PRIMARY\s+KEY", schema)
         if match:
             return match.group(1)

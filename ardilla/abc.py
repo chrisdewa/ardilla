@@ -1,16 +1,16 @@
-from typing import Generic, Self, Literal
+import sqlite3
+from typing import Generic, Self, Literal, TypeVar, Type
 from abc import abstractmethod, ABC
 from sqlite3 import Row
 
 from .errors import MissingEngine
-from .engine import Engine
 from .models import M, Model as BaseModel
+
+E = TypeVar("E")  # Engine Type
 
 
 class CrudABC(ABC):
-    engine: Engine
-
-    def __init__(self, Model: type[M], engine: Engine | None = None) -> None:
+    def __init__(self, Model: type[M], engine: E | None = None) -> None:
         if engine:
             self.engine = engine
 
@@ -20,16 +20,17 @@ class CrudABC(ABC):
         self.tablename = Model.__tablename__
         self.columns = tuple(Model.__fields__)
 
-    def __new__(cls, Model: type[M], engine: Engine | None = None) -> Self:
+    def __new__(cls, Model: type[M], engine: E | None = None) -> Self:
         if not issubclass(Model, BaseModel):
             raise TypeError("Model param has to be a subclass of model")
 
         cls_engine = getattr(cls, "engine", None)
 
-        if not isinstance(engine, Engine) and not isinstance(cls_engine, Engine):
+        if engine is None and cls_engine is None:
+            # if not isinstance(engine, Engine) and not isinstance(cls_engine, Engine):
             raise MissingEngine(
-                "You must either set the engine at class level (Crud.engine = Engine(...))"
-                "or pass it as an argument."
+                "Missing engine. Set the engine at instance level (Crud(Model, engine))"
+                "or at class level (Crud.engine = engine)"
             )
         return super().__new__(cls)
 

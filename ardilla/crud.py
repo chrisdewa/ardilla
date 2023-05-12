@@ -2,14 +2,25 @@ import sqlite3
 from sqlite3 import Row
 from typing import Literal, Generic, Self
 
-from .engine import Engine
 from .abc import CrudABC
 from .models import M, Model as BaseModel
 from .errors import QueryExecutionError
 
 
+class AbstractEngine:
+    """This just provides autocompletition across the library"""
+
+    def __enter__(self) -> sqlite3.Connection:
+        ...
+
+    def cursor(self, con: sqlite3.Connection) -> sqlite3.Cursor:
+        ...
+
+
 class Crud(CrudABC, Generic[M]):
     """Abstracts CRUD actions for model associated tables"""
+
+    engine: AbstractEngine
 
     def _get_or_none_any(self, many: bool, **kws) -> list[M] | M | None:
         """
@@ -23,6 +34,7 @@ class Crud(CrudABC, Generic[M]):
         q = f"SELECT rowid, * FROM {self.tablename} WHERE ({to_match}) {limit}"
         with self.engine as con:
             with self.engine.cursor(con) as cur:
+                cur: sqlite3.Cursor
                 cur.execute(q, vals)
                 if many:
                     rows: list[Row] = cur.fetchall()
@@ -33,7 +45,9 @@ class Crud(CrudABC, Generic[M]):
                         return self._row2obj(row)
         return
 
-    def _do_insert(self, ignore: bool = False, returning: bool = True, /, **kws):
+    def _do_insert(
+        self, ignore: bool = False, returning: bool = True, /, **kws
+    ) -> M | None:
         keys, vals = zip(*kws.items())
         placeholders = ", ".join("?" * len(keys))
         cols = ", ".join(keys)
@@ -44,6 +58,7 @@ class Crud(CrudABC, Generic[M]):
 
         with self.engine as con:
             with self.engine.cursor(con) as cur:
+                cur: sqlite3.Cursor
                 try:
                     cur.execute(q, vals)
                 except sqlite3.IntegrityError as e:
@@ -86,6 +101,7 @@ class Crud(CrudABC, Generic[M]):
         q = f"SELECT * FROM {self.tablename};"
         with self.engine as con:
             with self.engine.cursor(con) as cur:
+                cur: sqlite3.Cursor
                 cur.execute(q)
                 results = cur.fetchall()
                 return [self.Model(**res) for res in results]

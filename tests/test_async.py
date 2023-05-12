@@ -26,8 +26,7 @@ async def cleanup():
     try:
         db.unlink(missing_ok=True)
         engine = Engine(db)
-        Crud.engine = engine
-        crud: Crud[User] = Crud(User)
+        crud = engine.crud(User)
         await engine.setup()
         yield crud
     finally:
@@ -46,78 +45,111 @@ def query():
 
 
 @pytest.mark.asyncio
-async def test_create():
+async def test_insert():
     async with cleanup() as crud:
-        chris = User(id=1, name="chris", age=35)
-        moni = User(id=2, name="moni", age=36)
-        elena = User(id=3, name="elena", age=5)
-        await crud.save_many(chris, moni, elena)
-        fran = User(id=4, name="fran", age=1)
-        await crud.save_one(fran)
-
-        with query() as cur:
-            cur.execute("SELECT * FROM user;")
-            res = cur.fetchall()
-
-        assert len(res) == 4, "Mistmatch created vs found"
+        u = await crud.insert(id=1, name="chris", age=35)
+        assert u is not None, "User wasn't created as expected"
 
         try:
-            await crud.insert(id=1, name="john", age=34)
+            await crud.insert(id=1, name="chris", age=35)
         except QueryExecutionError:
             pass
         else:
             raise Exception("QueryExcecutionError should have been rised")
 
-        u = await crud.insert_or_ignore(id=1, name="john", age=34)
-        assert u is None, "Record 1 already exists but was somehow re-inserted"
 
-        u = await crud.insert_or_ignore(name="john", age=34)
-        assert u is not None and u.name == "john", "Bad user was created"
+@pytest.mark.asyncio
+async def test_insert_or_ignore():
+    async with cleanup() as crud:
+        u = await crud.insert_or_ignore(id=1, name="chris", age=35)
+        assert u is not None, "User wasn't created as expected"
+        u = await crud.insert_or_ignore(id=1, name="chris", age=35)
+        assert u is None, "User was returned but it should have been None"
 
 
 @pytest.mark.asyncio
-async def test_read():
+async def test_save_one():
     async with cleanup() as crud:
         chris = User(id=1, name="chris", age=35)
-        chris2 = User(id=2, name="chris", age=36)
-        elena = User(id=3, name="elena", age=5)
-        await crud.save_many(chris, chris2, elena)
+        await crud.save_one(chris)
 
-        users = await crud.get_all()
-        assert len(users) == 3, "Wrong number of read users from get_all"
-        users = await crud.get_many(name="chris")
-        assert len(users) == 2, "wrong number of users from get_many"
-        u = await crud.get_or_none(id=1)
-        assert u == chris, "bad user found"
-        u = await crud.get_or_none(id=5)
-        assert u is None, "bad user not found"
-        u, c = await crud.get_or_create(name="fran", age=1)
-        assert c is True, "Bad created value"
-        assert u == User(id=4, name="fran", age=1), "bad created user"
-        u, c = await crud.get_or_create(id=3)
-        assert u == elena, "bad user found"
-        assert c is False, "Bad not created value"
+        with query() as cur:
+            cur.execute("SELECT * FROM user;")
+            res = cur.fetchall()
+
+        assert len(res) == 1, "Incorrect number of users in the database"
 
 
 @pytest.mark.asyncio
-async def test_update():
+async def test_save_many():
     async with cleanup() as crud:
         chris = User(id=1, name="chris", age=35)
         moni = User(id=2, name="moni", age=36)
-        await crud.save_many(chris, moni)
-        chris.age = 40
-        await crud.save_one(chris)
-        u = await crud.get_or_none(**chris.dict())
-        assert u is not None, "user not updated"
-        chris.age = 45
-        moni.age = 50
-        await crud.save_many(chris, moni)
-        u = await crud.get_or_none(**moni.dict())
-        assert u is not None, "User not updated on many"
+        elena = User(id=3, name="elena", age=5)
+        await crud.save_many(chris, moni, elena)
+
+        with query() as cur:
+            cur.execute("SELECT * FROM user;")
+            res = cur.fetchall()
+
+        assert len(res) == 3, "Incorrect number of users in the database"
 
 
 @pytest.mark.asyncio
-async def test_delete():
+async def test_get_all():
+    async with cleanup() as crud:
+        chris = User(id=1, name="chris", age=35)
+        moni = User(id=2, name="moni", age=36)
+        elena = User(id=3, name="elena", age=5)
+        await crud.save_many(chris, moni, elena)
+
+        users = await crud.get_all()
+        assert len(users) == 3, "Incorrect number of users returned"
+
+
+@pytest.mark.asyncio
+async def test_get_many():
+    async with cleanup() as crud:
+        u1 = User(id=1, name="chris", age=35)
+        u2 = User(id=2, name="chris", age=35)
+        u3 = User(id=3, name="chris", age=35)
+        u4 = User(id=4, name="moni", age=34)
+        u5 = User(id=5, name="fran", age=1)
+        await crud.save_many(u1, u2, u3, u4, u5)
+
+        users = await crud.get_many(name="chris")
+
+        assert len(users) == 3, "Incorrect number of users returned"
+
+
+@pytest.mark.asyncio
+async def test_get_or_create():
+    async with cleanup() as crud:
+        elena = User(id=1, name="elena", age=5)
+        await crud.save_one(elena)
+
+        u, c = await crud.get_or_create(name="fran", age=1)
+        assert c is True, "User should have been created"
+        assert u == User(id=2, name="fran", age=1), f"Unexpected user was created: {u}"
+        u, c = await crud.get_or_create(id=1)
+        assert u == elena, "Mismatch between expected and returned user"
+        assert c is False, "User shouldn't have been created"
+
+
+@pytest.mark.asyncio
+async def test_get_or_none():
+    async with cleanup() as crud:
+        elena = User(id=1, name="elena", age=5)
+        await crud.save_one(elena)
+
+        u = await crud.get_or_none(id=1)
+        assert u is not None, "User wasn't found but it should have"
+        u = await crud.get_or_none(id=2)
+        assert u is None, "User shouln't have been found but was"
+
+
+@pytest.mark.asyncio
+async def test_delete_one():
     async with cleanup() as crud:
         chris = User(id=1, name="chris", age=35)
         moni = User(id=2, name="moni", age=36)
@@ -125,7 +157,17 @@ async def test_delete():
         await crud.save_many(chris, moni, elena)
         await crud.delete_one(moni)
         users = await crud.get_all()
-        assert len(users) == 2, "Delete one missmatch"
+        assert len(users) == 2, "Delete one didn't delete the correct amount of users"
+
+
+@pytest.mark.asyncio
+async def test_delete_many():
+    async with cleanup() as crud:
+        chris = User(id=1, name="chris", age=35)
+        moni = User(id=2, name="moni", age=36)
+        elena = User(id=3, name="elena", age=5)
+        await crud.save_many(chris, moni, elena)
+
         await crud.delete_many(chris, elena)
         users = await crud.get_all()
-        assert len(users) == 0, "Delete many missmatch"
+        assert len(users) == 1, "Delete many didn't delete the correct amount of users"

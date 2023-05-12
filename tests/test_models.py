@@ -24,3 +24,7 @@ def test_default_tablename():
 
 def test_default_schema():
     assert User.__schema__.strip() == schema.strip()
+
+
+def test_pk():
+    assert User.__pk__ == "id"

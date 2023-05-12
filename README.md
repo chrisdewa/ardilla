@@ -14,9 +14,11 @@ It comes in sync (sqlite3) and async (aiosqlite) flavors.
 
 ## Who and what is this for:
 
-The target audience for this library are developers who want to incorporate a SQLite database to their applications in a fast and easy way. 
+For developers seeking a simple and straightforward way to incorporate a SQLite database into their applications, our library is an excellent option. It offers a user-friendly solution that is both fast and easy to use.
 
-What this library excels in simplicity it lacks in flexibility so, if you're expecting to use complex queries and intricate relationships, you should should consider other libraries like [tortoise-orm](https://github.com/tortoise/tortoise-orm), [sqlalchemy](https://github.com/sqlalchemy/sqlalchemy), [pony](https://github.com/ponyorm/pony) or [peewee](https://github.com/coleifer/peewee).
+While this library may not be suitable for those who require more complex querying and intricate relationships, it excels in its simplicity and ease of implementation.
+
+For developers who desire more advanced features, there are other libraries available, such as [tortoise-orm](https://github.com/tortoise/tortoise-orm), [sqlalchemy](https://github.com/sqlalchemy/sqlalchemy), [pony](https://github.com/ponyorm/pony) or [peewee](https://github.com/coleifer/peewee).
 
 
 ## install
@@ -43,14 +45,13 @@ from ardilla import Engine, Model, Crud
 from pydantic import Field
 
 engine = Engine('db.sqlite3')
-Crud.engine = engine
 
 class User(Model):
     id: int = Field(primary=True, autoincrement=True) 
     name: str
     age: int
 
-user_crud: Crud[User] = Crud(User)
+user_crud = engine.crud(User)
 
 def main():
     engine.setup() # creates tables 
@@ -68,25 +69,21 @@ def main():
 ```
 
 ## Supported CRUD methods:
- - `crud.get_or_none` Returns an object or None
- - `crud.insert` Inserts a record, rises errors if there's a conflict
- - `crud.insert_or_ignore` Inserts a record or silently ignores if it already exists
- - `crud.get_or_create` returns an tuple of the object and a bool, True if the object was newly created
- - `crud.get_all` equivalent to `SELECT * FROM tablename`
- - `crud.get_many` returns all the objects that meet criteria
- - `crud.save_one` upserts an object
- - `crud.save_many` upserts many objects
- - `crud.delete_one` deletes one object
- - `crud.delete_many` deletes many objects
-
+- `crud.insert` Inserts a record, rises errors if there's a conflict
+- `crud.insert_or_ignore` Inserts a record or silently ignores if it already exists
+- `crud.save_one` upserts an object
+- `crud.save_many` upserts many objects
+- `crud.get_all` equivalent to `SELECT * FROM tablename`
+- `crud.get_many` returns all the objects that meet criteria
+- `crud.get_or_create` returns an tuple of the object and a bool, True if the object was newly created
+- `crud.get_or_none` Returns the first object meeting criteria if any
+- `crud.delete_one` Deletes an object
+- `crud.delete_many` Deletes many objects
 
 ## To-dos
 
+- [x] Add testing
+- [x] Add a schema generator 
 - [ ] Docstring everything using Google format
-- [ ] Add testing
 - [ ] Add proper documentation
   - propper as in a site with how to use
-- [x] Add a schema generator 
-  - There should be a method to generate a table's schema off the pydantic model. 
-- [ ] Add a method somewhere to fetch relationships. 
-- [ ] Improve this read

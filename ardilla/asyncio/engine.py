@@ -1,6 +1,7 @@
 from __future__ import annotations
 import aiosqlite
 
+from .crud import AsyncCrud
 from ..models import M
 from ..engine import Engine
 
@@ -24,3 +25,6 @@ class AsyncEngine(Engine):
             for table in self.schemas:
                 await con.execute(table)
             await con.commit()
+
+    def crud(self, Model: type[M]) -> AsyncCrud[M]:
+        return AsyncCrud(Model, self)

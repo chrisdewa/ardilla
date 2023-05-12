@@ -3,17 +3,28 @@ from typing import Literal, Generic, Self
 import aiosqlite
 from aiosqlite import Row
 
-from .engine import AsyncEngine
-
 from ..errors import QueryExecutionError
 from ..models import M
 from ..abc import CrudABC
 
 
+class AbstractAsyncEngine:
+    """This just provides autocompletition across the library"""
+
+    async def __aenter__(self) -> aiosqlite.Connection:
+        ...
+
+    async def cursor(self, con: aiosqlite.Connection) -> aiosqlite.Cursor:
+        ...
+
+    async def connect(self) -> aiosqlite.Connection:
+        ...
+
+
 class AsyncCrud(CrudABC, Generic[M]):
     """Abstracts CRUD actions for model associated tables"""
 
-    engine: AsyncEngine
+    engine: AbstractAsyncEngine
 
     async def _get_or_none_any(self, many: bool, **kws) -> list[M] | M | None:
         """

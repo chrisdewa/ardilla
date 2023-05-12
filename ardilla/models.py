@@ -7,7 +7,7 @@ from .errors import ModelIntegrityError
 
 class Model(BaseModel):
     __rowid__: int | None = PrivateAttr(default=None)
-    __pk__: str | None # tells the model which key to idenfity as primary
+    __pk__: str | None  # tells the model which key to idenfity as primary
     __tablename__: str  # will default to the lowercase name of the subclass
     __schema__: str  # best effort will be made if it's missing
     # there's no support for constrains or foreign fields yet but you can
@@ -20,10 +20,9 @@ class Model(BaseModel):
                     f'Field "{field.name}" of model "{cls.__name__}" is of unsupported type "{field.type_}"'
                 )
 
-
         if not hasattr(cls, "__schema__"):
             cls.__schema__ = make_schema(cls)
-        
+
         cls.__pk__ = get_pk(cls.__schema__)
 
         if not hasattr(cls, "__tablename__"):
@@ -37,6 +36,7 @@ class Model(BaseModel):
 
     @property
     def has_pk(self) -> bool:
-        return 'primary key' in self.__schema__.lower()
+        return "primary key" in self.__schema__.lower()
+
 
 M = TypeVar("M", bound=Model)

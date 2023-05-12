@@ -2,7 +2,7 @@ from __future__ import annotations
 import sqlite3
 
 from .models import M
-
+from .crud import Crud
 
 class ContextCursor:
     def __init__(self, con: sqlite3.Connection):
@@ -39,3 +39,6 @@ class Engine:
             for table in self.schemas:
                 con.execute(table)
             con.commit()
+    
+    def crud(self, Model: type[M]) -> Crud[M]:
+        return Crud(Model, self)
