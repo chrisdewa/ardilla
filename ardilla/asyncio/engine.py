@@ -26,8 +26,15 @@ class AsyncEngine(Engine, AbstractAsyncEngine):
             await con.execute("PRAGMA foreign_keys = ON;")
             for table in self.schemas:
                 await con.execute(table)
+                self.tables_created.add(table)
             await con.commit()
-
+    
     def crud(self, Model: type[M]) -> AsyncCrud[M]:
+        """This function runs synchronously"""
         crud = self._cruds.setdefault(Model, AsyncCrud(Model, self))
+        if Model.__schema__ not in self.tables_created:
+            with self as con:
+                con.execute(Model.__schema__)
+                con.commit()
+            self.tables_created.add(Model.__schema__)
         return crud

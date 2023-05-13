@@ -6,9 +6,9 @@ from aiosqlite import Row
 from ..errors import QueryExecutionError
 from ..models import M
 from ..abc import CrudABC
+from ..logging import log, log_query
 
 from .abc import AbstractAsyncEngine
-
 
 class AsyncCrud(CrudABC, Generic[M]):
     """Abstracts CRUD actions for model associated tables"""
@@ -25,7 +25,7 @@ class AsyncCrud(CrudABC, Generic[M]):
 
         limit = "LIMIT 1;" if not many else ";"
         q = f"SELECT rowid, * FROM {self.tablename} WHERE ({to_match}) {limit}"
-
+        log_query(q, vals)
         async with self.engine as con:
             async with con.execute(q, vals) as cur:
                 if many:
@@ -50,7 +50,7 @@ class AsyncCrud(CrudABC, Generic[M]):
         q = "INSERT OR IGNORE " if ignore else "INSERT "
         q += f"INTO {self.tablename} ({cols}) VALUES ({placeholders})"
         q += " RETURNING *;" if returning else ";"
-
+        log_query(q, vals)
         async with self.engine as con:
             con = await self.engine.connect()
             cur = None
@@ -106,12 +106,12 @@ class AsyncCrud(CrudABC, Generic[M]):
         cols, vals = zip(*obj.dict().items())
         placeholders = ", ".join("?" * len(cols))
 
-        upsert_query = f"""
+        q = f"""
         INSERT OR REPLACE INTO {self.tablename} ({', '.join(cols)}) VALUES ({placeholders});
         """
-
+        log_query(q, vals)
         async with self.engine as con:
-            await con.execute(upsert_query, vals)
+            await con.execute(q, vals)
             await con.commit()
         return True
 
@@ -120,6 +120,7 @@ class AsyncCrud(CrudABC, Generic[M]):
         placeholders = ", ".join("?" * len(self.columns))
         q = f'INSERT OR REPLACE INTO {self.tablename} ({", ".join(self.columns)}) VALUES ({placeholders});'
         vals = [tuple(obj.dict().values()) for obj in objs]
+        log_query(q, vals)
         async with self.engine as con:
             await con.executemany(q, vals)
             await con.commit()
@@ -136,6 +137,7 @@ class AsyncCrud(CrudABC, Generic[M]):
         placeholders = ", ".join(f"{k} = ?" for k in id_cols)
         vals = tuple([obj_dict[k] for k in id_cols])
         q = f"DELETE FROM {self.tablename} WHERE ({placeholders});"
+        log_query(q, vals)
         async with self.engine as con:
             await con.execute(q, vals)
             await con.commit()
@@ -155,8 +157,9 @@ class AsyncCrud(CrudABC, Generic[M]):
         )
 
         q = f"DELETE FROM {self.tablename} WHERE {placeholders};"
+        log_query(q, vals)
         async with self.engine as con:
             await con.execute(q, vals)
             await con.commit()
 
-        return True
+        return 
