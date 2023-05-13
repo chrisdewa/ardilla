@@ -135,15 +135,25 @@ class Crud(CrudABC, Generic[M]):
     def delete_one(self, obj: M) -> Literal[True]:
         """
         Deletes the object from the database (won't delete the actual object)
-        queries only by the Model id fields (fields suffixed with 'id')
+        If the object has a PK field or the rowid setup, those will be 
+        used to locate the obj and delete it. 
+        If not, this function will delete any object like this one.
         """
-        obj_dict = obj.dict()
-        id_cols = tuple([k for k in obj_dict if "id" in k])
-        placeholders = ", ".join(f"{k} = ?" for k in id_cols)
-        vals = tuple([obj_dict[k] for k in id_cols])
-        q = f"""
-        DELETE FROM {self.tablename} WHERE ({placeholders});
-        """
+        
+        if obj.__pk__:
+            q = f'DELETE FROM {self.tablename} WHERE {obj.__pk__} = ?'
+            vals = getattr(obj, obj.__pk__),
+        elif obj.__rowid__:
+            q = f'DELETE FROM {self.tablename} WHERE rowid = ?'
+            vals = obj.__rowid__,
+        else:
+            obj_dict = obj.dict()
+            id_cols = tuple([k for k in obj_dict if "id" in k])
+            placeholders = ", ".join(f"{k} = ?" for k in id_cols)
+            vals = tuple([obj_dict[k] for k in id_cols])
+            q = f"""
+            DELETE FROM {self.tablename} WHERE ({placeholders});
+            """
         with self.engine as con:
             con.execute(q, vals)
             con.commit()
