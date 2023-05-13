@@ -29,4 +29,5 @@ class AsyncEngine(Engine, AbstractAsyncEngine):
             await con.commit()
 
     def crud(self, Model: type[M]) -> AsyncCrud[M]:
-        return AsyncCrud(Model, self)
+        crud = self._cruds.setdefault(Model, AsyncCrud(Model, self))
+        return crud

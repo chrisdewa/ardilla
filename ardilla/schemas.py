@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, date
-from pydantic import BaseModel
+from pydantic import BaseModel, Json
 from .errors import ModelIntegrityError
 
 
@@ -15,6 +15,7 @@ FIELD_MAPPING = {
     bool: "INTEGER",
     date: "DATE",
     datetime: "TIMESTAMP",
+    Json: "TEXT",
 }
 
 

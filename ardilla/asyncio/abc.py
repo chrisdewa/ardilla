@@ -3,6 +3,8 @@ import aiosqlite
 
 class AbstractAsyncEngine(ABC):
     """This just provides autocompletition across the library"""
+    schemas: set[str]
+
     @abstractmethod
     async def __aenter__(self) -> aiosqlite.Connection:
         ...

@@ -11,6 +11,7 @@ E = TypeVar("E")  # Engine Type
 
 class AbstractEngine(ABC):
     """This just provides autocompletition across the library"""
+    schemas: set[str]
     @abstractmethod
     def __enter__(self) -> sqlite3.Connection:
         ...
@@ -20,6 +21,7 @@ class AbstractEngine(ABC):
 
 
 class CrudABC(ABC):
+    engine: AbstractEngine
     def __init__(self, Model: type[M], engine: E | None = None) -> None:
         if engine:
             self.engine = engine

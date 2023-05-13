@@ -21,6 +21,7 @@ class Engine(AbstractEngine):
     def __init__(self, path: str):
         self.path = path
         self.schemas: set[str] = set()
+        self._cruds = {}
 
     def __enter__(self) -> sqlite3.Connection:
         con = sqlite3.connect(self.path)
@@ -42,4 +43,5 @@ class Engine(AbstractEngine):
             con.commit()
     
     def crud(self, Model: type[M]) -> Crud[M]:
-        return Crud(Model, self)
+        crud = self._cruds.setdefault(Model, Crud(Model, self))
+        return crud
