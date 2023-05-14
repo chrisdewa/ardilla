@@ -36,7 +36,7 @@ def get_fields(model: type[BaseModel]) -> str:
         ) or field.field_info.extra.get("primary_key")
         if field_is_pk and pk and field.name != pk:
             raise ModelIntegrityError(
-                f"field {field.name} is marked as pk, but __pk__ points to other field."
+                f"field {field.name} is marked as pk, but __pk__ points to another field."
             )
         out = f"    {field.name} {type_}"
         if pk == field.name or field_is_pk:

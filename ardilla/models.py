@@ -14,16 +14,22 @@ class Model(BaseModel):
     # define your own schema to support them
 
     def __init_subclass__(cls, **kws) -> None:
+        pk = None
         for field in cls.__fields__.values():
             if field.type_ not in FIELD_MAPPING:
                 raise ModelIntegrityError(
                     f'Field "{field.name}" of model "{cls.__name__}" is of unsupported type "{field.type_}"'
                 )
+            if (
+                field.field_info.extra.get('primary') 
+                or field.field_info.extra.get('primary_key')
+            ):
+                pk = field.name 
 
         if not hasattr(cls, "__schema__"):
             cls.__schema__ = make_schema(cls)
 
-        cls.__pk__ = get_pk(cls.__schema__)
+        cls.__pk__ = pk or get_pk(cls.__schema__)
 
         if not hasattr(cls, "__tablename__"):
             tablename = get_tablename(cls)

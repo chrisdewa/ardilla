@@ -14,7 +14,7 @@ db = path / "testdb.sqlite"
 
 
 class User(Model):
-    id: int = Field(primary=True)
+    id: int = Field(primary=True, autoincrement=True)
     name: str
     age: int
 
@@ -127,6 +127,7 @@ def test_get_many():
         users = crud.get_many(name="chris")
 
         assert len(users) == 3, "Incorrect number of users returned"
+        assert all(u.__rowid__ for u in users), 'User objects did not get their rowid populated'
 
 
 def test_get_or_create():
@@ -164,13 +165,33 @@ def test_delete_one():
         assert len(users) == 2, "Delete one didn't delete the correct amount of users"
 
 
-def test_delete_many():
+def test_delete_many_by_id():
     with cleanup() as crud:
-        chris = User(id=1, name="chris", age=35)
-        moni = User(id=2, name="moni", age=36)
-        elena = User(id=3, name="elena", age=5)
-        crud.save_many(chris, moni, elena)
-
-        crud.delete_many(chris, elena)
+        users = [
+            User(id=n, name='chris', age=n)
+            for n in range(10)
+        ]
+        crud.save_many(*users)
+        
+        to_delete = users[:-1]
+        crud.delete_many(*to_delete)
+        
         users = crud.get_all()
         assert len(users) == 1, "Delete many didn't delete the correct amount of users"
+
+
+def test_delete_many_by_rowid():
+    with cleanup() as crud:
+        users = [
+            User(id=n, name='chris', age=n)
+            for n in range(10)
+        ]
+        crud.save_many(*users)
+       
+        crud.delete_many(*users[:-1])
+        
+        users = crud.get_all()
+        
+        
+        assert len(users) == 1, "Delete many didn't delete the correct amount of users"
+

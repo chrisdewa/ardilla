@@ -1,14 +1,18 @@
-class BaseDBException(Exception):
+class BaseArdillaException(Exception):
     pass
 
 
-class ModelIntegrityError(BaseDBException):
+class ModelIntegrityError(BaseArdillaException):
     pass
 
 
-class MissingEngine(BaseDBException):
+class MissingEngine(BaseArdillaException):
     pass
 
 
-class QueryExecutionError(BaseDBException):
+class QueryExecutionError(BaseArdillaException):
+    pass
+
+
+class BadQueryError(BaseArdillaException):
     pass

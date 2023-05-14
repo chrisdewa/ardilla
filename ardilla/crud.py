@@ -4,7 +4,7 @@ from typing import Literal, Generic, Self
 
 from .abc import CrudABC, AbstractEngine
 from .models import M, Model as BaseModel
-from .errors import QueryExecutionError
+from .errors import BadQueryError, QueryExecutionError
 
 
 class Crud(CrudABC, Generic[M]):
@@ -88,13 +88,14 @@ class Crud(CrudABC, Generic[M]):
 
     def get_all(self) -> list[M]:
         """Gets all objects from the database"""
-        q = f"SELECT * FROM {self.tablename};"
+        q = f"SELECT rowid, * FROM {self.tablename};"
         with self.engine as con:
             with self.engine.cursor(con) as cur:
                 cur: sqlite3.Cursor
                 cur.execute(q)
-                results = cur.fetchall()
-                return [self.Model(**res) for res in results]
+                results: list[Row] = cur.fetchall()
+                return [self._row2obj(res) for res in results]
+            
 
     def get_many(self, **kws) -> list[M]:
         """Returns a list of objects that have the given conditions"""
@@ -115,7 +116,6 @@ class Crud(CrudABC, Generic[M]):
             upsert_query = f"""
             INSERT OR REPLACE INTO {self.tablename} ({', '.join(cols)}) VALUES ({placeholders});
             """
-
         with self.engine as con:
             con.execute(upsert_query, vals)
             con.commit()
@@ -164,17 +164,18 @@ class Crud(CrudABC, Generic[M]):
         if not objs:
             raise IndexError('param "objs" is empty, pass at least one object')
 
-        prot = objs[0]
-        id_cols = tuple([k for k in prot.dict() if "id" in k])
-        placeholders = " OR ".join(
-            f"({', '.join(f'{k} = ?' for k in id_cols)})" for _ in objs
-        )
-        vals = tuple(
-            [val for obj in objs for key, val in obj.dict().items() if key in id_cols]
-        )
+        placeholders = ', '.join('?' for _ in objs)
+        if all(obj.__rowid__ for obj in objs):
+            vals = [obj.__rowid__ for obj in objs]    
+            q = f'DELETE FROM {self.tablename} WHERE rowid IN ({placeholders})'
 
-        q = f"DELETE FROM {self.tablename} WHERE {placeholders};"
-
+        elif pk := self.Model.__pk__:
+            vals = [getattr(obj, pk) for obj in objs]
+            q = f'DELETE FROM {self.tablename} WHERE id IN ({placeholders})'
+            
+        else:
+            raise BadQueryError('Objects requiere either a primary key or the rowid set for mass deletion')
+        
         with self.engine as con:
             con.execute(q, vals)
             con.commit()

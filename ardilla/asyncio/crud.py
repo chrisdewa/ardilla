@@ -3,7 +3,7 @@ from typing import Literal, Generic, Self
 import aiosqlite
 from aiosqlite import Row
 
-from ..errors import QueryExecutionError
+from ..errors import BadQueryError, QueryExecutionError
 from ..models import M
 from ..abc import CrudABC
 from ..logging import log, log_query
@@ -94,8 +94,8 @@ class AsyncCrud(CrudABC, Generic[M]):
     async def get_all(self) -> list[M]:
         """Gets all objects from the database"""
         async with self.engine as con:
-            async with con.execute(f"SELECT * FROM {self.tablename};") as cur:
-                return [self.Model(**row) for row in await cur.fetchall()]
+            async with con.execute(f"SELECT rowid, * FROM {self.tablename};") as cur:
+                return [self._row2obj(row) for row in await cur.fetchall()]
 
     async def get_many(self, **kws) -> list[M]:
         """Returns a list of objects that have the given conditions"""
@@ -147,17 +147,18 @@ class AsyncCrud(CrudABC, Generic[M]):
         if not objs:
             raise IndexError('param "objs" is empty, pass at least one object')
 
-        prot = objs[0]
-        id_cols = tuple([k for k in prot.dict() if "id" in k])
-        placeholders = " OR ".join(
-            f"({', '.join(f'{k} = ?' for k in id_cols)})" for _ in objs
-        )
-        vals = tuple(
-            [val for obj in objs for key, val in obj.dict().items() if key in id_cols]
-        )
+        placeholders = ', '.join('?' for _ in objs)
+        if all(obj.__rowid__ for obj in objs):
+            vals = [obj.__rowid__ for obj in objs]    
+            q = f'DELETE FROM {self.tablename} WHERE rowid IN ({placeholders})'
 
-        q = f"DELETE FROM {self.tablename} WHERE {placeholders};"
-        log_query(q, vals)
+        elif pk := self.Model.__pk__:
+            vals = [getattr(obj, pk) for obj in objs]
+            q = f'DELETE FROM {self.tablename} WHERE id IN ({placeholders})'
+            
+        else:
+            raise BadQueryError('Objects requiere either a primary key or the rowid set for mass deletion')
+        
         async with self.engine as con:
             await con.execute(q, vals)
             await con.commit()

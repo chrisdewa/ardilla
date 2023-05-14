@@ -52,7 +52,7 @@ class CrudABC(ABC):
             row: the sqlite row
             rowid: the rowid of the row.
                 If passed it means it comes from an insert function
-                meaning the rowid
+                
         """
         [*keys] = self.Model.__fields__
         if rowid is None:

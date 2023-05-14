@@ -159,15 +159,34 @@ async def test_delete_one():
         users = await crud.get_all()
         assert len(users) == 2, "Delete one didn't delete the correct amount of users"
 
-
 @pytest.mark.asyncio
-async def test_delete_many():
+async def test_delete_many_by_id():
     async with cleanup() as crud:
-        chris = User(id=1, name="chris", age=35)
-        moni = User(id=2, name="moni", age=36)
-        elena = User(id=3, name="elena", age=5)
-        await crud.save_many(chris, moni, elena)
-
-        await crud.delete_many(chris, elena)
+        users = [
+            User(id=n, name='chris', age=n)
+            for n in range(10)
+        ]
+        await crud.save_many(*users)
+        
+        to_delete = users[:-1]
+        await crud.delete_many(*to_delete)
+        
         users = await crud.get_all()
         assert len(users) == 1, "Delete many didn't delete the correct amount of users"
+
+@pytest.mark.asyncio
+async def test_delete_many_by_rowid():
+    async with cleanup() as crud:
+        users = [
+            User(id=n, name='chris', age=n)
+            for n in range(10)
+        ]
+        await crud.save_many(*users)
+       
+        await crud.delete_many(*users[:-1])
+        
+        users = await crud.get_all()
+        
+        
+        assert len(users) == 1, "Delete many didn't delete the correct amount of users"
+
