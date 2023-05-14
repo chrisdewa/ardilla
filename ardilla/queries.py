@@ -1,9 +1,25 @@
+"""
+Methods here are used by Crud classes to obtain the query 
+strings and variable tuples to pass to the connections and cursors
+"""
 from .errors import BadQueryError
 from .models import M
 
-QueryNVals = tuple[str, tuple]
+Query = str
+Vals = tuple
 
-def for_get_or_none_any(tablename: str, many: bool, kws) -> QueryNVals:
+
+def for_get_or_none_any(tablename: str, many: bool, kws: dict) -> tuple[Query, Vals]:
+    """called by _get_or_none_any methods
+
+    Args:
+        tablename (str): name of the table
+        many (bool): if the function will return a single item or any amount
+        kws (dict): the keywords to identify the rows with
+
+    Returns:
+        tuple[Query, Vals]: the query and values.
+    """
     keys, vals = zip(*kws.items())
     to_match = f" AND ".join(f"{k} = ?" for k in keys)
     limit = "LIMIT 1;" if not many else ";"
@@ -15,8 +31,19 @@ def for_do_insert(
     tablename: str,
     ignore: bool,
     returning: bool,
-    kws,
-) -> QueryNVals:
+    kws: dict,
+) -> tuple[Query, Vals]:
+    """called by _do_insert methods
+
+    Args:
+        tablename (str): name of the table
+        ignore (bool): whether or not to use `INSERT OR IGNORE` vs just `INSERT`
+        returning (bool): if the inserted values should be returned by the query
+        kws (dict): the keywords representing column name and values
+
+    Returns:
+        tuple[Query, Vals]: the queries and values
+    """
     keys, vals = zip(*kws.items())
     placeholders = ", ".join("?" * len(keys))
     cols = ", ".join(keys)
@@ -27,7 +54,15 @@ def for_do_insert(
     return q, vals
 
 
-def for_save_one(obj: M) -> QueryNVals:
+def for_save_one(obj: M) -> tuple[Query, Vals]:
+    """called by save_one methods
+
+    Args:
+        obj (M): the Model instance to save
+
+    Returns:
+        tuple[Query, Vals]: the query and values
+    """    
     cols, vals = zip(*obj.dict().items())
 
     if obj.__rowid__ is not None:
@@ -43,7 +78,18 @@ def for_save_one(obj: M) -> QueryNVals:
         """
     return q, vals
 
-def for_save_many(objs: tuple[M]) -> QueryNVals:
+def for_save_many(objs: tuple[M]) -> tuple[Query, Vals]:
+    """called by save_many methods
+
+    Args:
+        objs (tuple[M]): the objects to save
+
+    Raises:
+        BadQueryError: if the objs tuple is empty
+
+    Returns:
+        tuple[Query, Vals]: the query and values
+    """
     if not objs:
         raise BadQueryError('To save many, you have to at least past one object')
     cols = tuple(objs[0].__fields__)
@@ -53,7 +99,15 @@ def for_save_many(objs: tuple[M]) -> QueryNVals:
     vals = [tuple(obj.dict().values()) for obj in objs]
     return q, vals
 
-def for_delete_one(obj: M) -> QueryNVals:
+def for_delete_one(obj: M) -> tuple[Query, Vals]:
+    """called by delete_one methods
+
+    Args:
+        obj (M): the object to delete
+
+    Returns:
+        tuple[Query, Vals]: the query and values
+    """    
     tablename = obj.__tablename__
     if obj.__pk__:
         q = f'DELETE FROM {tablename} WHERE {obj.__pk__} = ?'
@@ -71,7 +125,19 @@ def for_delete_one(obj: M) -> QueryNVals:
         """
     return q, vals
 
-def for_delete_many(objs: tuple[M]) -> QueryNVals:
+def for_delete_many(objs: tuple[M]) -> tuple[Query, Vals]:
+    """called by delete_many methods
+
+    Args:
+        objs (tuple[M]): objects to delete
+
+    Raises:
+        IndexError: if the the obj tuple is empty
+        BadQueryError: if the objects don't have either rowid or pks
+
+    Returns:
+        tuple[Query, Vals]: _description_
+    """
     if not objs:
         raise IndexError('param "objs" is empty, pass at least one object')
 
