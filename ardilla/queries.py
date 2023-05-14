@@ -2,11 +2,12 @@
 Methods here are used by Crud classes to obtain the query 
 strings and variable tuples to pass to the connections and cursors
 """
+from typing import Any
 from .errors import BadQueryError
 from .models import M
 
 Query = str
-Vals = tuple
+Vals = tuple[Any, ...]
 
 
 def for_get_or_none_any(tablename: str, many: bool, kws: dict) -> tuple[Query, Vals]:
@@ -117,9 +118,8 @@ def for_delete_one(obj: M) -> tuple[Query, Vals]:
         vals = obj.__rowid__,
     else:
         obj_dict = obj.dict()
-        id_cols = tuple([k for k in obj_dict if "id" in k])
-        placeholders = ", ".join(f"{k} = ?" for k in id_cols)
-        vals = tuple(obj_dict[k] for k in id_cols)
+        placeholders = " AND ".join(f"{k} = ?" for k in obj_dict)
+        vals = tuple(obj_dict[k] for k in obj_dict)
         q = f"""
         DELETE FROM {tablename} WHERE ({placeholders});
         """
@@ -144,11 +144,11 @@ def for_delete_many(objs: tuple[M]) -> tuple[Query, Vals]:
     tablename = objs[0].__tablename__
     placeholders = ', '.join('?' for _ in objs)
     if all(obj.__rowid__ for obj in objs):
-        vals = [obj.__rowid__ for obj in objs]    
+        vals = tuple(obj.__rowid__ for obj in objs)
         q = f'DELETE FROM {tablename} WHERE rowid IN ({placeholders})'
 
     elif pk := objs[0].__pk__:
-        vals = [getattr(obj, pk) for obj in objs]
+        vals = tuple(getattr(obj, pk) for obj in objs)
         q = f'DELETE FROM {tablename} WHERE id IN ({placeholders})'
         
     else:

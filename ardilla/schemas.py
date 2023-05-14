@@ -7,10 +7,10 @@ from pydantic import BaseModel, Json
 from .errors import ModelIntegrityError
 
 
-SCHEMA_TEMPLATE = "CREATE TABLE IF NOT EXISTS {tablename} (\n{fields}\n);"
+SCHEMA_TEMPLATE: str = "CREATE TABLE IF NOT EXISTS {tablename} (\n{fields}\n);"
 
 
-FIELD_MAPPING = {
+FIELD_MAPPING: dict[type, str] = {
     int: "INTEGER",
     float: "REAL",
     str: "TEXT",

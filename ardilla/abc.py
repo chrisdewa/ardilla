@@ -1,5 +1,5 @@
 import sqlite3
-from typing import Generic, Self, Literal, TypeVar, Type, Generator
+from typing import Self, Literal, TypeVar, ContextManager, Protocol
 from abc import abstractmethod, ABC
 from sqlite3 import Row
 
@@ -8,6 +8,13 @@ from .models import M, Model as BaseModel
 
 E = TypeVar("E")  # Engine Type
 
+class ContextCursorProtocol(Protocol):
+    def __init__(self, con: sqlite3.Connection):
+        ...
+    def __enter__(self) -> sqlite3.Cursor:
+        ...
+    def __exit__(self, *_) -> None:
+        ...
 
 class AbstractEngine(ABC):
     """This just provides autocompletition across the library"""
@@ -16,13 +23,17 @@ class AbstractEngine(ABC):
     def __enter__(self) -> sqlite3.Connection:
         ...
     @abstractmethod
-    def cursor(self, con: sqlite3.Connection) -> Generator[sqlite3.Cursor, None, None]:
+    def __exit__(self, *_) -> None:
         ...
+    @abstractmethod
+    def cursor(self, con: sqlite3.Connection) -> ContextCursorProtocol:
+        ...
+
 
 
 class CrudABC(ABC):
     engine: AbstractEngine
-    def __init__(self, Model: type[M], engine: E | None = None) -> None:
+    def __init__(self, Model: type[M], engine: AbstractEngine | None = None) -> None:
         if engine:
             self.engine = engine
 
@@ -32,7 +43,7 @@ class CrudABC(ABC):
         self.tablename = Model.__tablename__
         self.columns = tuple(Model.__fields__)
 
-    def __new__(cls, Model: type[M], engine: E | None = None) -> Self:
+    def __new__(cls, Model: type[M], engine: AbstractEngine | None = None) -> Self:
         if not issubclass(Model, BaseModel):
             raise TypeError("Model param has to be a subclass of model")
 
@@ -46,7 +57,7 @@ class CrudABC(ABC):
             )
         return super().__new__(cls)
 
-    def _row2obj(self, row: Row, rowid: int = None) -> M:
+    def _row2obj(self, row: Row, rowid: int | None = None) -> BaseModel:
         """
         Args:
             row: the sqlite row
@@ -96,12 +107,12 @@ class CrudABC(ABC):
         pass
 
     @abstractmethod
-    def _get_or_none_any(self, many: bool, **kws) -> list[M] | M | None:
+    def _get_or_none_any(self, many: bool, **kws) -> list[BaseModel] | BaseModel | None:
         pass
 
     # Update
     @abstractmethod
-    def save_one(self, obj: M) -> Literal[True]:
+    def save_one(self, obj: BaseModel) -> Literal[True]:
         pass
 
     @abstractmethod

@@ -1,18 +1,22 @@
-class BaseArdillaException(Exception):
+"""
+Contains the module's errors
+"""
+
+class ArdillaException(Exception):
     pass
 
 
-class ModelIntegrityError(BaseArdillaException):
+class ModelIntegrityError(ArdillaException):
     pass
 
 
-class MissingEngine(BaseArdillaException):
+class MissingEngine(ArdillaException):
     pass
 
 
-class QueryExecutionError(BaseArdillaException):
+class QueryExecutionError(ArdillaException):
     pass
 
 
-class BadQueryError(BaseArdillaException):
+class BadQueryError(ArdillaException):
     pass

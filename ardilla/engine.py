@@ -1,12 +1,13 @@
 from __future__ import annotations
 import sqlite3
+from pydantic import BaseModel
 
-from .models import M
+from .models import M, Model
 from .crud import Crud
-from .abc import AbstractEngine
+from .abc import AbstractEngine, ContextCursorProtocol
 from .logging import log
 
-class ContextCursor:
+class ContextCursor(ContextCursorProtocol):
     def __init__(self, con: sqlite3.Connection):
         self.con = con
 
@@ -23,8 +24,8 @@ class Engine(AbstractEngine):
     def __init__(self, path: str):
         self.path = path
         self.schemas: set[str] = set()
-        self._cruds = {}
-        self.tables_created = set()
+        self._cruds: dict[type[Model], Crud[Model]] = {}
+        self.tables_created: set[str] = set()
         log.info(f'Instantiating {self.__class__.__name__}')
 
     def __enter__(self) -> sqlite3.Connection:
@@ -48,7 +49,7 @@ class Engine(AbstractEngine):
             con.commit()
             
     
-    def crud(self, Model: type[M]) -> Crud[M]:
+    def crud(self, Model: type[Model]) -> Crud[Model]:
         crud = self._cruds.setdefault(Model, Crud(Model, self))
         if Model.__schema__ not in self.tables_created:
             with self as con:

@@ -25,7 +25,6 @@ def cleanup():
         db.unlink(missing_ok=True)
         engine = Engine(db)
         crud = engine.crud(User)
-        engine.setup()
         yield crud
     finally:
         db.unlink(missing_ok=True)
@@ -178,6 +177,32 @@ def test_delete_one():
         users = crud.get_all()
         assert len(users) == 2, "Delete one didn't delete the correct amount of users"
 
+class Foo(Model):
+    a: str
+    b: int
+
+def test_delete_one_without_ids():
+    db.unlink(missing_ok=True)
+    engine = Engine(db)
+    crud = engine.crud(Foo)
+    try:
+        for i, l in enumerate('abcdef',1):
+            crud.insert(a=l, b=i)
+            
+        to_del = [
+            Foo(a='b', b=2),
+            Foo(a='c', b=3),
+            Foo(a='d', b=4),
+        ]
+        for obj in to_del:
+            crud.delete_one(obj)
+        
+        foos = crud.get_all()
+        assert len(foos) == 3, 'Mismatch beween expected and found after delete_many'
+        
+    finally:
+        db.unlink(missing_ok=True)
+    
 
 def test_delete_many_by_id():
     with cleanup() as crud:
@@ -208,4 +233,3 @@ def test_delete_many_by_rowid():
         
         
         assert len(users) == 1, "Delete many didn't delete the correct amount of users"
-

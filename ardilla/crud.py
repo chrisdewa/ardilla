@@ -1,10 +1,10 @@
 import sqlite3
 from sqlite3 import Row
-from typing import Literal, Generic, Self
+from typing import Literal, Generic
 
 from .abc import CrudABC, AbstractEngine
 from .models import M, Model as BaseModel
-from .errors import BadQueryError, QueryExecutionError
+from .errors import QueryExecutionError
 from . import queries
 
 class Crud(CrudABC, Generic[M]):
@@ -12,15 +12,15 @@ class Crud(CrudABC, Generic[M]):
 
     engine: AbstractEngine
 
-    def _get_or_none_any(self, many: bool, **kws) -> list[M] | M | None:
+    def _get_or_none_any(self, many: bool, **kws) -> list[BaseModel] | BaseModel | None:
         """
         private helper to the get_or_none queries.
         if param "many" is true it will return a list of matches else will return only one record
         """
         q, vals = queries.for_get_or_none_any(self.tablename, many, kws)
         with self.engine as con:
-            with self.engine.cursor(con) as cur:
-                cur: sqlite3.Cursor
+            ctxcur = self.engine.cursor(con)
+            with ctxcur as cur:
                 cur.execute(q, vals)
                 if many:
                     rows: list[Row] = cur.fetchall()
@@ -29,6 +29,7 @@ class Crud(CrudABC, Generic[M]):
                     row: Row | None = cur.fetchone()
                     if row:
                         return self._row2obj(row)
+        return None
 
     def _do_insert(
         self, ignore: bool = False, returning: bool = True, /, **kws
@@ -37,7 +38,6 @@ class Crud(CrudABC, Generic[M]):
 
         with self.engine as con:
             with self.engine.cursor(con) as cur:
-                cur: sqlite3.Cursor
                 try:
                     cur.execute(q, vals)
                 except sqlite3.IntegrityError as e:
@@ -47,6 +47,7 @@ class Crud(CrudABC, Generic[M]):
                 con.commit()
                 if returning and row:
                     return self._row2obj(row, cur.lastrowid)
+        return None
 
     def get_or_none(self, **kws) -> M | None:
         """Gets an object from a database or None if not found"""
