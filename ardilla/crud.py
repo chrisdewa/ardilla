@@ -93,6 +93,7 @@ class Crud(CrudABC, Generic[M]):
     def save_one(self, obj: M) -> Literal[True]:
         """Saves one object to the database"""
         q, vals = queries.for_save_one(obj)
+        print(q, vals)
         with self.engine as con:
             con.execute(q, vals)
             con.commit()

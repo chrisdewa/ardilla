@@ -1,5 +1,5 @@
 import sqlite3
-from typing import Generic, Self, Literal, TypeVar, Type
+from typing import Generic, Self, Literal, TypeVar, Type, Generator
 from abc import abstractmethod, ABC
 from sqlite3 import Row
 
@@ -15,8 +15,8 @@ class AbstractEngine(ABC):
     @abstractmethod
     def __enter__(self) -> sqlite3.Connection:
         ...
-    abstractmethod
-    def cursor(self, con: sqlite3.Connection) -> sqlite3.Cursor:
+    @abstractmethod
+    def cursor(self, con: sqlite3.Connection) -> Generator[sqlite3.Cursor, None, None]:
         ...
 
 

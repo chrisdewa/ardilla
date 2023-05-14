@@ -61,7 +61,8 @@ def test_insert():
     with cleanup() as crud:
         u = crud.insert(id=1, name="chris", age=35)
         assert u is not None, "User wasn't created as expected"
-
+        assert u.__rowid__ is not None, "Created user did not have __rowid__ set"
+        assert u.__rowid__ == 1, "Created User did not have correct __rowid__ "
         try:
             crud.insert(id=1, name="chris", age=35)
         except QueryExecutionError:
@@ -89,6 +90,19 @@ def test_save_one():
 
         assert len(res) == 1, "Incorrect number of users in the database"
 
+
+def test_save_one_rowid():
+    with cleanup() as crud:
+        chris = crud.insert(id=1, name="chris", age=35)
+        chris.name = 'chris_is_alt'
+        crud.save_one(chris)
+        
+
+        with query() as cur:
+            cur.execute("SELECT * FROM user;")
+            res = cur.fetchall()
+
+        assert len(res) == 1, "Incorrect number of users in the database"
 
 def test_save_many():
     with cleanup() as crud:

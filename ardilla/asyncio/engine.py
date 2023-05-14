@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Coroutine
 import aiosqlite
 
 from .crud import AsyncCrud
@@ -6,7 +7,7 @@ from ..models import M
 from ..engine import Engine
 
 from .abc import AbstractAsyncEngine
-
+from collections.abc import Coroutine
 
 class AsyncEngine(Engine, AbstractAsyncEngine):
     async def connect(self) -> aiosqlite.Connection:

@@ -67,9 +67,9 @@ def for_save_one(obj: M) -> tuple[Query, Vals]:
 
     if obj.__rowid__ is not None:
         q = f"""
-        UPDATE {obj.__tablename__} SET ({', '.join(f'{k} = ?' for k in cols)}) WHERE rowid = ?;
+        UPDATE {obj.__tablename__} SET {', '.join(f'{k} = ?' for k in cols)} WHERE rowid = ?;
         """
-        vals += obj.__rowid__
+        vals += obj.__rowid__,
 
     else:
         placeholders = ", ".join("?" * len(cols))
@@ -96,7 +96,7 @@ def for_save_many(objs: tuple[M]) -> tuple[Query, Vals]:
     tablename = objs[0].__tablename__
     placeholders = ", ".join("?" * len(cols))
     q = f'INSERT OR REPLACE INTO {tablename} ({", ".join(cols)}) VALUES ({placeholders});'
-    vals = [tuple(obj.dict().values()) for obj in objs]
+    vals = tuple(tuple(obj.dict().values()) for obj in objs)
     return q, vals
 
 def for_delete_one(obj: M) -> tuple[Query, Vals]:
@@ -119,7 +119,7 @@ def for_delete_one(obj: M) -> tuple[Query, Vals]:
         obj_dict = obj.dict()
         id_cols = tuple([k for k in obj_dict if "id" in k])
         placeholders = ", ".join(f"{k} = ?" for k in id_cols)
-        vals = tuple([obj_dict[k] for k in id_cols])
+        vals = tuple(obj_dict[k] for k in id_cols)
         q = f"""
         DELETE FROM {tablename} WHERE ({placeholders});
         """

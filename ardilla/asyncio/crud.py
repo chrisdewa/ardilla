@@ -130,4 +130,4 @@ class AsyncCrud(CrudABC, Generic[M]):
             await con.execute(q, vals)
             await con.commit()
 
-        return 
+        return True
