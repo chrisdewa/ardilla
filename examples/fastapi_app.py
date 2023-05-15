@@ -32,10 +32,15 @@ async def on_startup_event():
     await engine.setup()  # executes the table schemas
 
 
-async def get_item_by_id(id_: int) -> Item | int:
+async def get_item_by_id(id_: int) -> Item:
     """Returns the item with the specified id
-    If there's not such item in the database, the original id is returned instead
 
+    Args: 
+        id_ (int): the id of the item to lookup
+    
+    Raises:
+        HTTPException: if there is no item with the given id_
+    
     """
     item = await crud.get_or_none(id=id_)
     if item is None:
@@ -67,12 +72,12 @@ async def get_item_route(item: item_by_id_deps) -> Item:
 
 
 @app.get("/items")
-async def get_all_items():
+async def get_all_items() -> list[Item]:
     return await crud.get_all()
 
 
 @app.patch("/items/{id}")
-async def patch_item(item: item_by_id_deps, patched: PatchedItem):
+async def patch_item(item: item_by_id_deps, patched: PatchedItem) -> Item:
     item.name = patched.name
     item.price = patched.price
     await crud.save_one(item)
@@ -80,7 +85,7 @@ async def patch_item(item: item_by_id_deps, patched: PatchedItem):
 
 
 @app.delete("/item/{id}")
-async def delete_item(item: item_by_id_deps):
+async def delete_item(item: item_by_id_deps) -> None:
     await crud.delete_one(item)
 
 
