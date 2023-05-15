@@ -82,6 +82,12 @@ def main():
 - `crud.delete_one` Deletes an object
 - `crud.delete_many` Deletes many objects
 
+
+## Examples:
+
+- A simples [FastAPI](https://github.com/chrisdewa/ardilla/blob/master/examples/fastapi_app.py) Application
+- A reputation discord [bot](https://github.com/chrisdewa/ardilla/blob/master/examples/rep_discord_bot.py)
+
 ## To-dos
 
 - [x] Add testing
