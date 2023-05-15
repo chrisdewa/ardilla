@@ -85,8 +85,8 @@ def main():
 
 ## Examples:
 
-- A simples [FastAPI](https://github.com/chrisdewa/ardilla/blob/master/examples/fastapi_app.py) Application
-- A reputation discord [bot](https://github.com/chrisdewa/ardilla/blob/master/examples/rep_discord_bot.py)
+- A simple [FastAPI](https://github.com/chrisdewa/ardilla/blob/master/examples/fastapi_app.py) application
+- A reputation based discord [bot](https://github.com/chrisdewa/ardilla/blob/master/examples/rep_discord_bot.py)
 
 ## To-dos
 
