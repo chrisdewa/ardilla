@@ -112,7 +112,7 @@ class CrudABC(ABC):
 
     # Update
     @abstractmethod
-    def save_one(self, obj: BaseModel) -> Literal[True]:
+    def save_one(self, obj: M) -> Literal[True]:
         pass
 
     @abstractmethod

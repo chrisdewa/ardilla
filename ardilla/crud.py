@@ -7,6 +7,7 @@ from .models import M, Model as BaseModel
 from .errors import QueryExecutionError
 from . import queries
 
+
 class Crud(CrudABC, Generic[M]):
     """Abstracts CRUD actions for model associated tables"""
 
@@ -32,8 +33,12 @@ class Crud(CrudABC, Generic[M]):
         return None
 
     def _do_insert(
-        self, ignore: bool = False, returning: bool = True, /, **kws
-    ) -> M | None:
+        self,
+        ignore: bool = False,
+        returning: bool = True,
+        /,
+        **kws,
+    ) -> BaseModel | None:
         q, vals = queries.for_do_insert(self.tablename, ignore, returning, kws)
 
         with self.engine as con:
@@ -47,6 +52,7 @@ class Crud(CrudABC, Generic[M]):
                 con.commit()
                 if returning and row:
                     return self._row2obj(row, cur.lastrowid)
+
         return None
 
     def get_or_none(self, **kws) -> M | None:
@@ -76,18 +82,16 @@ class Crud(CrudABC, Generic[M]):
             created = True
         return result, created
 
-    def get_all(self) -> list[M]:
+    def get_all(self) -> list[BaseModel]:
         """Gets all objects from the database"""
         q = f"SELECT rowid, * FROM {self.tablename};"
         with self.engine as con:
             with self.engine.cursor(con) as cur:
-                cur: sqlite3.Cursor
                 cur.execute(q)
                 results: list[Row] = cur.fetchall()
                 return [self._row2obj(res) for res in results]
-            
 
-    def get_many(self, **kws) -> list[M]:
+    def get_many(self, **kws) -> list[BaseModel]:
         """Returns a list of objects that have the given conditions"""
         return self._get_or_none_any(many=True, **kws)
 
@@ -100,7 +104,7 @@ class Crud(CrudABC, Generic[M]):
             con.commit()
         return True
 
-    def save_many(self, *objs: M) -> Literal[True]:
+    def save_many(self, *objs: tuple[M]) -> Literal[True]:
         """Saves all the given objects to the database"""
         q, vals = queries.for_save_many(objs)
         with self.engine as con:
@@ -112,11 +116,11 @@ class Crud(CrudABC, Generic[M]):
     def delete_one(self, obj: M) -> Literal[True]:
         """
         Deletes the object from the database (won't delete the actual object)
-        If the object has a PK field or the rowid setup, those will be 
-        used to locate the obj and delete it. 
+        If the object has a PK field or the rowid setup, those will be
+        used to locate the obj and delete it.
         If not, this function will delete any object like this one.
         """
-        
+
         q, vals = queries.for_delete_one(obj)
         with self.engine as con:
             con.execute(q, vals)
