@@ -13,7 +13,7 @@ class Crud(CrudABC, Generic[M]):
 
     engine: AbstractEngine
 
-    def _get_or_none_any(self, many: bool, **kws) -> list[BaseModel] | BaseModel | None:
+    def _get_or_none_any(self, many: bool, **kws) -> list[M] | M | None:
         """
         private helper to the get_or_none queries.
         if param "many" is true it will return a list of matches else will return only one record
@@ -38,7 +38,7 @@ class Crud(CrudABC, Generic[M]):
         returning: bool = True,
         /,
         **kws,
-    ) -> BaseModel | None:
+    ) -> M | None:
         q, vals = queries.for_do_insert(self.tablename, ignore, returning, kws)
 
         with self.engine as con:
@@ -82,7 +82,7 @@ class Crud(CrudABC, Generic[M]):
             created = True
         return result, created
 
-    def get_all(self) -> list[BaseModel]:
+    def get_all(self) -> list[M]:
         """Gets all objects from the database"""
         q = f"SELECT rowid, * FROM {self.tablename};"
         with self.engine as con:
@@ -91,7 +91,7 @@ class Crud(CrudABC, Generic[M]):
                 results: list[Row] = cur.fetchall()
                 return [self._row2obj(res) for res in results]
 
-    def get_many(self, **kws) -> list[BaseModel]:
+    def get_many(self, **kws) -> list[M]:
         """Returns a list of objects that have the given conditions"""
         return self._get_or_none_any(many=True, **kws)
 

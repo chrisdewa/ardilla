@@ -49,7 +49,7 @@ class Engine(AbstractEngine):
             con.commit()
             
     
-    def crud(self, Model: type[Model]) -> Crud[Model]:
+    def crud(self, Model: type[M]) -> Crud[M]:
         crud = self._cruds.setdefault(Model, Crud(Model, self))
         if Model.__schema__ not in self.tables_created:
             with self as con:
