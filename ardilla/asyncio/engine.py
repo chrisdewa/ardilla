@@ -17,6 +17,8 @@ class AsyncEngine(Engine, AbstractAsyncEngine):
 
     async def __aenter__(self) -> aiosqlite.Connection:
         self.con = await self.connect()
+        if self.enable_foreing_keys:
+            await self.con.execute('PRAGMA foreign_keys = on;')
         return self.con
 
     async def __aexit__(self, *_):
@@ -24,7 +26,6 @@ class AsyncEngine(Engine, AbstractAsyncEngine):
 
     async def setup(self):
         async with self as con:
-            await con.execute("PRAGMA foreign_keys = ON;")
             for table in self.schemas:
                 await con.execute(table)
                 self.tables_created.add(table)

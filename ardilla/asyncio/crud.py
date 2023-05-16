@@ -3,10 +3,10 @@ from typing import Literal, Generic, Self
 import aiosqlite
 from aiosqlite import Row
 
-from ..errors import BadQueryError, QueryExecutionError
+from ..errors import QueryExecutionError
 from ..models import M
 from ..abc import CrudABC
-from ..logging import log, log_query
+from ..logging import log
 from .. import queries
 
 from .abc import AbstractAsyncEngine
@@ -22,7 +22,7 @@ class AsyncCrud(CrudABC, Generic[M]):
         if param "many" is true it will return a list of matches else will return only one record
         """
         q, vals = queries.for_get_or_none_any(self.tablename, many, kws)
-        log_query(q, vals)
+        
         async with self.engine as con:
             async with con.execute(q, vals) as cur:
                 if many:
@@ -41,7 +41,7 @@ class AsyncCrud(CrudABC, Generic[M]):
 
     async def _do_insert(self, ignore: bool = False, returning: bool = True, /, **kws):
         q, vals = queries.for_do_insert(self.tablename, ignore, returning, kws)
-        log_query(q, vals)
+
         async with self.engine as con:
             con = await self.engine.connect()
             cur = None
@@ -84,8 +84,11 @@ class AsyncCrud(CrudABC, Generic[M]):
 
     async def get_all(self) -> list[M]:
         """Gets all objects from the database"""
+        q = f"SELECT rowid, * FROM {self.tablename};"
+        log.debug(f'Querying: {q}')
+        
         async with self.engine as con:
-            async with con.execute(f"SELECT rowid, * FROM {self.tablename};") as cur:
+            async with con.execute(q) as cur:
                 return [self._row2obj(row) for row in await cur.fetchall()]
 
     async def get_many(self, **kws) -> list[M]:
@@ -95,7 +98,7 @@ class AsyncCrud(CrudABC, Generic[M]):
     async def save_one(self, obj: M) -> Literal[True]:
         """Saves one object to the database"""
         q, vals = queries.for_save_one(obj)
-        log_query(q, vals)
+
         async with self.engine as con:
             await con.execute(q, vals)
             await con.commit()
@@ -104,7 +107,7 @@ class AsyncCrud(CrudABC, Generic[M]):
     async def save_many(self, *objs: M) -> Literal[True]:
         """Saves all the given objects to the database"""
         q, vals = queries.for_save_many(objs)
-        log_query(q, vals)
+
         async with self.engine as con:
             await con.executemany(q, vals)
             await con.commit()
@@ -117,7 +120,7 @@ class AsyncCrud(CrudABC, Generic[M]):
         queries only by the Model id fields (fields suffixed with 'id')
         """
         q, vals = queries.for_delete_one(obj)
-        log_query(q, vals)
+
         async with self.engine as con:
             await con.execute(q, vals)
             await con.commit()

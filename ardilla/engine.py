@@ -21,17 +21,21 @@ class ContextCursor(ContextCursorProtocol):
 
 class Engine(AbstractEngine):
     
-    def __init__(self, path: str):
+    def __init__(self, path: str, enable_foreing_keys: bool = False):
         self.path = path
         self.schemas: set[str] = set()
         self._cruds: dict[type[Model], Crud[Model]] = {}
         self.tables_created: set[str] = set()
+        self.enable_foreing_keys = enable_foreing_keys
         log.info(f'Instantiating {self.__class__.__name__}')
 
     def __enter__(self) -> sqlite3.Connection:
         con = sqlite3.connect(self.path)
         con.row_factory = sqlite3.Row
         self.con = con
+        if self.enable_foreing_keys:
+            self.con.execute('PRAGMA foreign_keys = on;')
+            
         return con
 
     def __exit__(self, *_):
@@ -42,7 +46,6 @@ class Engine(AbstractEngine):
 
     def setup(self):
         with self as con:
-            con.execute("PRAGMA foreign_keys = ON;")
             for table in self.schemas:
                 con.execute(table)
                 self.tables_created.add(table)

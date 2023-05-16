@@ -5,6 +5,7 @@ strings and variable tuples to pass to the connections and cursors
 from typing import Any
 from .errors import BadQueryError
 from .models import M
+from .logging import log_query
 
 Query = str
 Vals = tuple[Any, ...]
@@ -25,6 +26,7 @@ def for_get_or_none_any(tablename: str, many: bool, kws: dict) -> tuple[Query, V
     to_match = f" AND ".join(f"{k} = ?" for k in keys)
     limit = "LIMIT 1;" if not many else ";"
     q = f"SELECT rowid, * FROM {tablename} WHERE ({to_match}) {limit}"
+    log_query(q, vals)
     return q, vals
 
 
@@ -52,6 +54,7 @@ def for_do_insert(
     q = "INSERT OR IGNORE " if ignore else "INSERT "
     q += f"INTO {tablename} ({cols}) VALUES ({placeholders})"
     q += " RETURNING *;" if returning else ";"
+    log_query(q, vals)
     return q, vals
 
 
@@ -77,6 +80,7 @@ def for_save_one(obj: M) -> tuple[Query, Vals]:
         q = f"""
         INSERT OR REPLACE INTO {obj.__tablename__} ({', '.join(cols)}) VALUES ({placeholders});
         """
+    log_query(q, vals)
     return q, vals
 
 def for_save_many(objs: tuple[M]) -> tuple[Query, Vals]:
@@ -98,6 +102,7 @@ def for_save_many(objs: tuple[M]) -> tuple[Query, Vals]:
     placeholders = ", ".join("?" * len(cols))
     q = f'INSERT OR REPLACE INTO {tablename} ({", ".join(cols)}) VALUES ({placeholders});'
     vals = tuple(tuple(obj.dict().values()) for obj in objs)
+    log_query(q, vals)
     return q, vals
 
 def for_delete_one(obj: M) -> tuple[Query, Vals]:
@@ -123,6 +128,7 @@ def for_delete_one(obj: M) -> tuple[Query, Vals]:
         q = f"""
         DELETE FROM {tablename} WHERE ({placeholders});
         """
+    log_query(q, vals)
     return q, vals
 
 def for_delete_many(objs: tuple[M]) -> tuple[Query, Vals]:
@@ -154,4 +160,5 @@ def for_delete_many(objs: tuple[M]) -> tuple[Query, Vals]:
     else:
         raise BadQueryError('Objects requiere either a primary key or the rowid set for mass deletion')
     
+    log_query(q, vals)
     return q, vals

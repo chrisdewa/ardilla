@@ -3,8 +3,9 @@ from sqlite3 import Row
 from typing import Literal, Generic
 
 from .abc import CrudABC, AbstractEngine
-from .models import M, Model as BaseModel
+from .models import M
 from .errors import QueryExecutionError
+from .logging import log
 from . import queries
 
 
@@ -59,11 +60,11 @@ class Crud(CrudABC, Generic[M]):
         """Gets an object from a database or None if not found"""
         return self._get_or_none_any(many=False, **kws)
 
-    def insert(self, **kws):
+    def insert(self, **kws) -> M:
         """
         Inserts a record into the database.
         Returns:
-            Model | None: Returns a model only if newly created
+            Model: Creates a new entry in the database and returns the object
         Rises:
             ardilla.error.QueryExecutionError: if there's a conflict when inserting the record
         """
@@ -85,6 +86,8 @@ class Crud(CrudABC, Generic[M]):
     def get_all(self) -> list[M]:
         """Gets all objects from the database"""
         q = f"SELECT rowid, * FROM {self.tablename};"
+        log.debug(f"Querying: {q}")
+
         with self.engine as con:
             with self.engine.cursor(con) as cur:
                 cur.execute(q)

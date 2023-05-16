@@ -59,7 +59,11 @@ def get_fields(model: type[BaseModel]) -> str:
 
         pk = getattr(model, "__pk__", None)
 
-        field_is_pk = extra.get("primary") or extra.get("primary_key")
+        field_is_pk = None
+        for k in {'primary', 'primary_key', 'pk'}:
+            if k in extra:
+                field_is_pk = extra[k]
+                break
 
         if field_is_pk and pk and field.name != pk:
             raise ModelIntegrityError(
