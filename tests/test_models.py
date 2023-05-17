@@ -1,5 +1,10 @@
-from ardilla.models import Model
-from pydantic import Field
+import sqlite3
+from pathlib import Path
+from datetime import datetime
+
+from ardilla import Model, Field
+
+from pydantic import Json
 
 
 class User(Model):
@@ -17,9 +22,63 @@ CREATE TABLE IF NOT EXISTS user(
 
 
 def test_default_tablename():
-    assert (
-        User.__tablename__ == "user"
-    ), f"wrong default tablename {User.__tablename__} != {tablename}"
+    class Foo(Model):
+        id: int
+    
+    assert Foo.__tablename__ == "foo"
+
+def test_field_pk():
+    class Foo(Model):
+        id: str = Field(primary=True)
+    
+    assert Foo.__pk__ == 'id'
+
+def test_int_pk_auto():
+    class Foo(Model):
+        id: int = Field(pk=True, auto=True)
+    
+    schema = Foo.__schema__
+    assert 'id INTEGER PRIMARY KEY AUTOINCREMENT' in schema
+
+
+
+binary_data = b'some weird data'
+
+class Complex(Model):
+    id: int = Field(pk=True, auto=True)
+    created: datetime = Field(auto=True)
+    name: str = 'me'
+    lastname: str | None = None
+    foo: str
+    data: bytes = binary_data
+
+complex_schema = f'''
+CREATE TABLE IF NOT EXISTS complex(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created DATETIME DEFAULT CURRENT_TIMESTAMP,
+    name TEXT DEFAULT 'me',
+    lastname TEXT,
+    foo TEXT NOT NULL,
+    data BLOB DEFAULT (X'{binary_data.hex()}')
+);
+'''
+
+
+def test_default_schema():
+    assert Complex.__schema__.strip() == complex_schema.strip()
+
+
+def test_complex_schema_works():
+    try:
+        db = Path(__file__).parent / 'db.sqlite3'
+        db.unlink(missing_ok=True)
+        con = sqlite3.connect(db)
+        con.execute(Complex.__schema__)
+        con.commit()
+    finally:
+        con.close()
+        db.unlink(missing_ok=True)
+
 
 
 def test_default_schema():

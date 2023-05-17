@@ -2,7 +2,7 @@
 variables and functions here are used to generate and work with the Model's schemas
 """
 import re
-from sqlite3 import Blob
+from sqlite3 import Binary
 from datetime import datetime, date, time
 from pydantic import BaseModel, Json
 from .errors import ModelIntegrityError
@@ -72,7 +72,7 @@ def get_fields_schemas(Model: type[BaseModel]) -> list[str]:
             if k in extra and extra[k]:
                 if pk is not None:
                     raise ModelIntegrityError('Only one primary key per model is allowed')
-                elif hasattr(Model, '__pk__') is not None and Model.__pk__ != name:
+                elif hasattr(Model, '__pk__') and Model.__pk__ != name:
                     raise ModelIntegrityError(f"field {name} is marked as pk, but __pk__ points to another field.")
                 
                 pk = name
@@ -94,7 +94,7 @@ def get_fields_schemas(Model: type[BaseModel]) -> list[str]:
                 elif T in {datetime, date, time}:
                     schema += f' DEFAULT {default}'
                 elif T in {bytes}:
-                    schema += f' DEFAULT {Blob(default)}'
+                    schema += f" DEFAULT (X'{default.hex()}')"
             elif field.required:
                     schema += ' NOT NULL'
                     
