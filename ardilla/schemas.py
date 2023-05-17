@@ -2,7 +2,8 @@
 variables and functions here are used to generate and work with the Model's schemas
 """
 import re
-from datetime import datetime, date
+from sqlite3 import Blob
+from datetime import datetime, date, time
 from pydantic import BaseModel, Json
 from .errors import ModelIntegrityError
 
@@ -14,11 +15,19 @@ FIELD_MAPPING: dict[type, str] = {
     int: "INTEGER",
     float: "REAL",
     str: "TEXT",
-    bytes: "BLOB",
     bool: "INTEGER",
+    datetime: "DATETIME",
+    bytes: "BLOB",
     date: "DATE",
-    datetime: "TIMESTAMP",
+    time: "TIME",
     Json: "TEXT",
+}
+
+AUTOFIELDS = {
+    int: " AUTOINCREMENT",
+    datetime: " DEFAULT CURRENT_TIMESTAMP",
+    date: " DEFAULT CURRENT_DATE",
+    time: " DEFAULT CURRENT_TIME"
 }
 
 
@@ -35,7 +44,7 @@ def get_tablename(model: type[BaseModel]) -> str:
     return getattr(model, "__tablename__", model.__name__.lower())
 
 
-def get_fields(model: type[BaseModel]) -> str:
+def get_fields_schemas(Model: type[BaseModel]) -> list[str]:
     """Generates the fields for the table schema of the passed model
 
     Args:
@@ -49,42 +58,52 @@ def get_fields(model: type[BaseModel]) -> str:
     Returns:
         str: a string containing the formatted fields to be added to a table schema
     """
-    fields = []
-    for field in model.__fields__.values():
-        if field.type_ not in FIELD_MAPPING:
-            raise TypeError(f'Unsupported/unrecognized sqlite type "{field.type_}"')
-        type_ = FIELD_MAPPING[field.type_]
-
+    schemas = []
+    pk = None
+    for field in Model.__fields__.values():
+        name = field.name
+        T = field.type_
+        default = field.default
         extra = field.field_info.extra
+        auto = extra.get('auto')
+        autoerror = ModelIntegrityError(f'field {name} has a type of "{T}" which does not support "auto"')
+        schema = f'{name} {FIELD_MAPPING[T]}'
+        for k in {'pk', 'primary', 'primary_key'}:
+            if k in extra and extra[k]:
+                if pk is not None:
+                    raise ModelIntegrityError('Only one primary key per model is allowed')
+                elif hasattr(Model, '__pk__') is not None and Model.__pk__ != name:
+                    raise ModelIntegrityError(f"field {name} is marked as pk, but __pk__ points to another field.")
+                
+                pk = name
+                schema += ' PRIMARY KEY'
 
-        pk = getattr(model, "__pk__", None)
-
-        field_is_pk = None
-        for k in {'primary', 'primary_key', 'pk'}:
-            if k in extra:
-                field_is_pk = extra[k]
+                if auto and T in AUTOFIELDS:
+                    schema += AUTOFIELDS[T]
+                elif auto:
+                    raise autoerror
                 break
+        else:
+            if auto and T in AUTOFIELDS.keys() - {int}:
+                schema += AUTOFIELDS[T]
+            elif auto:
+                raise autoerror
+            elif default:
+                if T in {int, str, float, bool}:
+                    schema += f' DEFAULT {default!r}'
+                elif T in {datetime, date, time}:
+                    schema += f' DEFAULT {default}'
+                elif T in {bytes}:
+                    schema += f' DEFAULT {Blob(default)}'
+            elif field.required:
+                    schema += ' NOT NULL'
+                    
+        schemas.append(schema)
 
-        if field_is_pk and pk and field.name != pk:
-            raise ModelIntegrityError(
-                f"field {field.name} is marked as pk, but __pk__ points to another field."
-            )
-        out = f"    {field.name} {type_}"
-        if pk == field.name or field_is_pk:
-            out += " PRIMARY KEY"
-            if extra.get("autoincrement") or extra.get("auto"):
-                out += " AUTOINCREMENT"
-        if field.required and not "PRIMARY KEY" in out:
-            out += " NOT NULL"
-        if field.default is not None:
-            out += f" DEFAULT {field.default!r}"
-
-        fields.append(out)
-
-    return ",\n".join(fields)
+    return schemas
 
 
-def make_schema(Model: type[BaseModel]) -> str:
+def make_table_schema(Model: type[BaseModel]) -> str:
     """Generates the schema from a model based on its field configuration
 
     Args:
@@ -93,9 +112,14 @@ def make_schema(Model: type[BaseModel]) -> str:
     Returns:
         str: the generated schema
     """
-    return SCHEMA_TEMPLATE.format(
-        tablename=get_tablename(Model), fields=get_fields(Model)
+    tablename = get_tablename(Model)
+    fields = get_fields_schemas(Model)
+    schema = (
+        f'CREATE TABLE IF NOT EXISTS {tablename}(\n' +
+        ',\n'.join(f'    {f}' for f in fields) +
+        '\n);'
     )
+    return schema
 
 
 def get_pk(schema: str) -> str | None:

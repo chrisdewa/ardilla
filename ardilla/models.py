@@ -5,7 +5,7 @@ Contains the Model object and typing alias to work with the engines and Cruds
 from typing import TypeVar, Annotated
 from pydantic import BaseModel, PrivateAttr
 
-from .schemas import make_schema, FIELD_MAPPING, get_tablename, get_pk
+from .schemas import make_table_schema, FIELD_MAPPING, get_tablename, get_pk
 from .errors import ModelIntegrityError
 
 
@@ -52,7 +52,7 @@ class Model(BaseModel):
                 cls.__pk__ = field.name 
 
         if not hasattr(cls, "__schema__"):
-            cls.__schema__ = make_schema(cls)
+            cls.__schema__ = make_table_schema(cls)
         
         if not hasattr(cls, '__pk__'):
             cls.__pk__ = get_pk(cls.__schema__)

@@ -7,6 +7,7 @@ from .crud import Crud
 from .abc import AbstractEngine, ContextCursorProtocol
 from .logging import log
 
+
 class ContextCursor(ContextCursorProtocol):
     def __init__(self, con: sqlite3.Connection):
         self.con = con
@@ -20,22 +21,26 @@ class ContextCursor(ContextCursorProtocol):
 
 
 class Engine(AbstractEngine):
-    
-    def __init__(self, path: str, enable_foreing_keys: bool = False):
+    def __init__(
+        self,
+        path: str,
+        enable_foreing_keys: bool = False,
+    ):
         self.path = path
         self.schemas: set[str] = set()
         self._cruds: dict[type[Model], Crud[Model]] = {}
         self.tables_created: set[str] = set()
         self.enable_foreing_keys = enable_foreing_keys
-        log.info(f'Instantiating {self.__class__.__name__}')
+        log.info(f"Instantiating {self.__class__.__name__}")
 
     def __enter__(self) -> sqlite3.Connection:
         con = sqlite3.connect(self.path)
         con.row_factory = sqlite3.Row
         self.con = con
+        
         if self.enable_foreing_keys:
-            self.con.execute('PRAGMA foreign_keys = on;')
-            
+            self.con.execute("PRAGMA foreign_keys = on;")
+
         return con
 
     def __exit__(self, *_):
@@ -50,8 +55,7 @@ class Engine(AbstractEngine):
                 con.execute(table)
                 self.tables_created.add(table)
             con.commit()
-            
-    
+
     def crud(self, Model: type[M]) -> Crud[M]:
         crud = self._cruds.setdefault(Model, Crud(Model, self))
         if Model.__schema__ not in self.tables_created:
