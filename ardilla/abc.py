@@ -8,31 +8,46 @@ from .models import M, Model as BaseModel
 
 E = TypeVar("E")  # Engine Type
 
+
 class ContextCursorProtocol(Protocol):
     def __init__(self, con: sqlite3.Connection):
         ...
+
     def __enter__(self) -> sqlite3.Cursor:
         ...
+
     def __exit__(self, *_) -> None:
         ...
 
+
 class AbstractEngine(ABC):
     """This just provides autocompletition across the library"""
+
     schemas: set[str]
+
     @abstractmethod
     def __enter__(self) -> sqlite3.Connection:
         ...
+
     @abstractmethod
     def __exit__(self, *_) -> None:
         ...
+
     @abstractmethod
     def cursor(self, con: sqlite3.Connection) -> ContextCursorProtocol:
         ...
 
 
-
 class CrudABC(ABC):
+    __slots__ = (
+        "engine",
+        "tablename",
+        "Model",
+        "columns",
+    )
+
     engine: AbstractEngine
+
     def __init__(self, Model: type[M], engine: AbstractEngine | None = None) -> None:
         if engine:
             self.engine = engine
@@ -63,7 +78,7 @@ class CrudABC(ABC):
             row: the sqlite row
             rowid: the rowid of the row.
                 If passed it means it comes from an insert function
-                
+
         """
         [*keys] = self.Model.__fields__
         if rowid is None:

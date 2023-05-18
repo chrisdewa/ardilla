@@ -9,6 +9,7 @@ from .logging import log
 
 
 class ContextCursor(ContextCursorProtocol):
+    __slots__ = ('con', 'cur')
     def __init__(self, con: sqlite3.Connection):
         self.con = con
 
@@ -21,6 +22,14 @@ class ContextCursor(ContextCursorProtocol):
 
 
 class Engine(AbstractEngine):
+    __slots__ = (
+        'path',
+        'schemas',
+        '_cruds',
+        'tables_created',
+        'enable_foreing_keys',
+        'con',
+    )
     def __init__(
         self,
         path: str,

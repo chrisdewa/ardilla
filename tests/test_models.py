@@ -7,20 +7,6 @@ from ardilla import Model, Field
 from pydantic import Json
 
 
-class User(Model):
-    id: int = Field(primary=True)
-    name: str
-
-
-tablename = "user"
-schema = """
-CREATE TABLE IF NOT EXISTS user(
-    id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL
-);
-"""
-
-
 def test_default_tablename():
     class Foo(Model):
         id: int
@@ -52,19 +38,18 @@ class Complex(Model):
     foo: str
     data: bytes = binary_data
 
-complex_schema = f'''
-CREATE TABLE IF NOT EXISTS complex(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    created DATETIME DEFAULT CURRENT_TIMESTAMP,
-    name TEXT DEFAULT 'me',
-    lastname TEXT,
-    foo TEXT NOT NULL,
-    data BLOB DEFAULT (X'{binary_data.hex()}')
-);
-'''
-
 
 def test_default_schema():
+    complex_schema = f'''
+    \rCREATE TABLE IF NOT EXISTS complex(
+    \r    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    \r    created DATETIME DEFAULT CURRENT_TIMESTAMP,
+    \r    name TEXT DEFAULT 'me',
+    \r    lastname TEXT,
+    \r    foo TEXT NOT NULL,
+    \r    data BLOB DEFAULT (X'{binary_data.hex()}')
+    \r);
+    '''
     assert Complex.__schema__.strip() == complex_schema.strip()
 
 
@@ -80,8 +65,21 @@ def test_complex_schema_works():
         db.unlink(missing_ok=True)
 
 
+class User(Model):
+    id: int = Field(primary=True)
+    name: str
+
+
+tablename = "user"
+schema = """
+CREATE TABLE IF NOT EXISTS user(
+\r    id INTEGER PRIMARY KEY,
+\r    name TEXT NOT NULL
+);
+"""
 
 def test_default_schema():
+
     assert User.__schema__.strip() == schema.strip()
 
 

@@ -93,7 +93,7 @@ def get_fields_schemas(Model: type[BaseModel]) -> list[str]:
                     schema += f' DEFAULT {default!r}'
                 elif T in {datetime, date, time}:
                     schema += f' DEFAULT {default}'
-                elif T in {bytes}:
+                elif T is bytes:
                     schema += f" DEFAULT (X'{default.hex()}')"
             elif field.required:
                     schema += ' NOT NULL'
@@ -116,7 +116,7 @@ def make_table_schema(Model: type[BaseModel]) -> str:
     fields = get_fields_schemas(Model)
     schema = (
         f'CREATE TABLE IF NOT EXISTS {tablename}(\n' +
-        ',\n'.join(f'    {f}' for f in fields) +
+        ',\n'.join(f'\r    {f}' for f in fields) +
         '\n);'
     )
     return schema
