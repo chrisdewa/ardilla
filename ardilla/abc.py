@@ -110,7 +110,7 @@ class CrudABC(ABC):
         pass
 
     @abstractmethod
-    def get_many(self, **kws) -> list[M]:
+    def get_many(self, order_by: dict[str, str] | None = None, limit: int | None = None, **kws) -> list[M]:
         pass
 
     @abstractmethod
@@ -121,9 +121,9 @@ class CrudABC(ABC):
     def get_or_none(self, **kws) -> M | None:
         pass
 
-    @abstractmethod
-    def _get_or_none_any(self, many: bool, **kws) -> list[BaseModel] | BaseModel | None:
-        pass
+    # @abstractmethod
+    # def _get_or_none_any(self, many: bool, **kws) -> list[BaseModel] | BaseModel | None:
+    #     pass
 
     # Update
     @abstractmethod

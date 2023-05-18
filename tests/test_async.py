@@ -1,3 +1,4 @@
+import random
 import sqlite3
 from contextlib import contextmanager, asynccontextmanager
 from pathlib import Path
@@ -121,6 +122,27 @@ async def test_get_many():
 
         assert len(users) == 3, "Incorrect number of users returned"
 
+@pytest.mark.asyncio
+async def test_get_many_with_limit():
+    users = [User(id=n, name='chris', age=random.randint(1, 27)) for n in range(50)]
+    async with cleanup() as crud:
+        await crud.save_many(*users)
+        users = await crud.get_many(limit=5)
+        assert len(users) == 5
+
+@pytest.mark.asyncio
+async def test_get_many_with_ordering(): 
+    async with cleanup() as crud:
+        await crud.insert(id=1, name='chris', age=3)
+        await crud.insert(id=2, name='chris', age=2)
+        await crud.insert(id=3, name='chris', age=5)
+        await crud.insert(id=4, name='chris', age=1)
+        await crud.insert(id=5, name='chris', age=4)
+        
+        users = await crud.get_many(order_by={'age': 'desc'})
+        
+        sorted_users = sorted(users, key=lambda u: u.age, reverse=True)
+        assert users == sorted_users
 
 @pytest.mark.asyncio
 async def test_get_or_create():

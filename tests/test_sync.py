@@ -1,3 +1,4 @@
+import random
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -141,6 +142,26 @@ def test_get_many():
 
         assert len(users) == 3, "Incorrect number of users returned"
         assert all(u.__rowid__ for u in users), 'User objects did not get their rowid populated'
+
+def test_get_many_with_limit():
+    users = [User(id=n, name='chris', age=random.randint(1, 27)) for n in range(50)]
+    with cleanup() as crud:
+        crud.save_many(*users)
+        users = crud.get_many(limit=5)
+        assert len(users) == 5
+
+def test_get_many_with_ordering():
+    with cleanup() as crud:
+        crud.insert(id=1, name='chris', age=3)
+        crud.insert(id=2, name='chris', age=2)
+        crud.insert(id=3, name='chris', age=5)
+        crud.insert(id=4, name='chris', age=1)
+        crud.insert(id=5, name='chris', age=4)
+        
+        users = crud.get_many(order_by={'age': 'desc'})
+        
+        sorted_users = sorted(users, key=lambda u: u.age, reverse=True)
+        assert users == sorted_users
 
 
 def test_get_or_create():

@@ -14,25 +14,6 @@ class Crud(CrudABC, Generic[M]):
 
     engine: AbstractEngine
 
-    def _get_or_none_any(self, many: bool, **kws) -> list[M] | M | None:
-        """
-        private helper to the get_or_none queries.
-        if param "many" is true it will return a list of matches else will return only one record
-        """
-        q, vals = queries.for_get_or_none_any(self.tablename, many, kws)
-        with self.engine as con:
-            ctxcur = self.engine.cursor(con)
-            with ctxcur as cur:
-                cur.execute(q, vals)
-                if many:
-                    rows: list[Row] = cur.fetchall()
-                    return [self._row2obj(row) for row in rows]
-                else:
-                    row: Row | None = cur.fetchone()
-                    if row:
-                        return self._row2obj(row)
-        return None
-
     def _do_insert(
         self,
         ignore: bool = False,
@@ -58,7 +39,15 @@ class Crud(CrudABC, Generic[M]):
 
     def get_or_none(self, **kws) -> M | None:
         """Gets an object from a database or None if not found"""
-        return self._get_or_none_any(many=False, **kws)
+        q, vals = queries.for_get_or_none(self.tablename, kws)
+        with self.engine as con:
+            ctxcur = self.engine.cursor(con)
+            with ctxcur as cur:
+                cur.execute(q, vals)
+                row: Row | None = cur.fetchone()
+                if row:
+                    return self._row2obj(row)
+        return None
 
     def insert(self, **kws) -> M:
         """
@@ -85,18 +74,22 @@ class Crud(CrudABC, Generic[M]):
 
     def get_all(self) -> list[M]:
         """Gets all objects from the database"""
-        q = f"SELECT rowid, * FROM {self.tablename};"
-        log.debug(f"Querying: {q}")
+        return self.get_many()
 
-        with self.engine as con:
-            with self.engine.cursor(con) as cur:
-                cur.execute(q)
-                results: list[Row] = cur.fetchall()
-                return [self._row2obj(res) for res in results]
-
-    def get_many(self, **kws) -> list[M]:
+    def get_many(
+        self,
+        order_by: dict[str, str] | None = None,
+        limit: int | None = None,
+        **kws,
+    ) -> list[M]:
         """Returns a list of objects that have the given conditions"""
-        return self._get_or_none_any(many=True, **kws)
+        q, vals = queries.for_get_many(self.Model, order_by=order_by, limit=limit, kws=kws)
+        with self.engine as con:
+            ctxcur = self.engine.cursor(con)
+            with ctxcur as cur:
+                cur.execute(q, vals)
+                rows: list[Row] = cur.fetchall()
+                return [self._row2obj(row) for row in rows]
 
     def save_one(self, obj: M) -> Literal[True]:
         """Saves one object to the database"""

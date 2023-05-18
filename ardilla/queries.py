@@ -5,30 +5,72 @@ strings and variable tuples to pass to the connections and cursors
 from typing import Any
 from .errors import BadQueryError
 from .models import M
+from .ordering import validate_ordering
 from .logging import log_query
 
 Query = str
 Vals = tuple[Any, ...]
 
 
-def for_get_or_none_any(tablename: str, many: bool, kws: dict) -> tuple[Query, Vals]:
-    """called by _get_or_none_any methods
-
+def for_get_or_none(tablename: str, kws: dict) -> tuple[Query, Vals]:
+    """called by _get_or_none_one method
     Args:
         tablename (str): name of the table
-        many (bool): if the function will return a single item or any amount
         kws (dict): the keywords to identify the rows with
-
     Returns:
-        tuple[Query, Vals]: the query and values.
+        tuple[Query, Vals]: the query and values.  
     """
     keys, vals = zip(*kws.items())
     to_match = f" AND ".join(f"{k} = ?" for k in keys)
-    limit = "LIMIT 1;" if not many else ";"
-    q = f"SELECT rowid, * FROM {tablename} WHERE ({to_match}) {limit}"
+    q = f"SELECT rowid, * FROM {tablename} WHERE ({to_match}) LIMIT 1;"
     log_query(q, vals)
     return q, vals
 
+def for_get_many(
+        Model: M, *, 
+        order_by: dict[str, str] | None = None,
+        limit: int | None = None,
+        kws: dict
+    ) -> tuple[str, tuple[Any, ...]]:    
+    """called by _get_many method
+    Args:
+     Args:
+        Model (Model): the model of the table
+        order_by (dict[str, str] | None ): 
+            if passed Defines the sorting methods for the query
+            defaults to no sorting
+        limit (int | None) an integer to determine the number of items to grab
+        kws (dict): the keywords to identify the rows with    
+    """
+    tablename = Model.__tablename__
+    columns = tuple(Model.__fields__)
+    
+    if kws:
+        keys, vals = zip(*kws.items())
+        to_match = f" AND ".join(f"{k} = ?" for k in keys)
+        filter_ = f'WHERE ({to_match})'
+    else:
+        filter_ = ''
+        vals = ()
+        
+    if order_by is not None:
+        ord = validate_ordering(columns, order_by)
+        order_by = f'ORDER BY ' + ', '.join(f'{k} {v}' for k,v in ord.items())
+    else:
+        order_by = ''
+    
+    if limit is not None:
+        if not isinstance(limit, int) or limit < 1: 
+            raise ValueError('Limit, when passed, must be an integer larger than zero')
+        limit_q = 'LIMIT ?'
+        vals += limit,
+    else:
+        limit_q = ''
+
+    
+    q = f"SELECT rowid, * FROM {tablename} {filter_} {order_by} {limit_q};"
+    print(q, vals)
+    return q, vals
 
 def for_do_insert(
     tablename: str,
@@ -162,3 +204,4 @@ def for_delete_many(objs: tuple[M]) -> tuple[Query, Vals]:
     
     log_query(q, vals)
     return q, vals
+

@@ -94,6 +94,9 @@ def main():
 
 - [x] Add testing
 - [x] Add a schema generator 
+- [X] Add filtering
+- [X] Add limiting
 - [ ] Docstring everything using Google format
+- [ ] Start a changelog when out of alpha
 - [ ] Add proper documentation
   - propper as in a site with how to use

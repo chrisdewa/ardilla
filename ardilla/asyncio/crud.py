@@ -11,33 +11,21 @@ from .. import queries
 
 from .abc import AbstractAsyncEngine
 
+
 class AsyncCrud(CrudABC, Generic[M]):
     """Abstracts CRUD actions for model associated tables"""
 
     engine: AbstractAsyncEngine
 
-    async def _get_or_none_any(self, many: bool, **kws) -> list[M] | M | None:
-        """
-        private helper to the get_or_none queries.
-        if param "many" is true it will return a list of matches else will return only one record
-        """
-        q, vals = queries.for_get_or_none_any(self.tablename, many, kws)
-        
-        async with self.engine as con:
-            async with con.execute(q, vals) as cur:
-                if many:
-                    rows: list[Row] = await cur.fetchall()
-                    return [self._row2obj(row) for row in rows]
-
-                else:
-                    row: Row | None = await cur.fetchone()
-                    if row:
-                        return self._row2obj(row)
-        return
-
     async def get_or_none(self, **kws) -> M | None:
         """Gets an object from a database or None if not found"""
-        return await self._get_or_none_any(many=False, **kws)
+        q, vals = queries.for_get_or_none(self.tablename, kws)
+        async with self.engine as con:
+            async with con.execute(q, vals) as cur:
+                row: Row | None = await cur.fetchone()
+                if row:
+                    return self._row2obj(row)
+        return None
 
     async def _do_insert(self, ignore: bool = False, returning: bool = True, /, **kws):
         q, vals = queries.for_do_insert(self.tablename, ignore, returning, kws)
@@ -85,15 +73,24 @@ class AsyncCrud(CrudABC, Generic[M]):
     async def get_all(self) -> list[M]:
         """Gets all objects from the database"""
         q = f"SELECT rowid, * FROM {self.tablename};"
-        log.debug(f'Querying: {q}')
-        
+        log.debug(f"Querying: {q}")
+
         async with self.engine as con:
             async with con.execute(q) as cur:
                 return [self._row2obj(row) for row in await cur.fetchall()]
 
-    async def get_many(self, **kws) -> list[M]:
+    async def get_many(
+        self,
+        order_by: dict[str, str] | None = None,
+        limit: int | None = None,
+        **kws,
+    ) -> list[M]:
         """Returns a list of objects that have the given conditions"""
-        return await self._get_or_none_any(many=True, **kws)
+        q, vals = queries.for_get_many(self.Model, order_by=order_by, limit=limit, kws=kws)
+        async with self.engine as con:
+            async with con.execute(q, vals) as cur:
+                rows: list[Row] = await cur.fetchall()
+                return [self._row2obj(row) for row in rows]
 
     async def save_one(self, obj: M) -> Literal[True]:
         """Saves one object to the database"""
@@ -128,9 +125,9 @@ class AsyncCrud(CrudABC, Generic[M]):
 
     async def delete_many(self, *objs: M) -> Literal[True]:
         q, vals = queries.for_delete_many(objs)
-        
+
         async with self.engine as con:
             await con.execute(q, vals)
             await con.commit()
 
-        return True
+        
