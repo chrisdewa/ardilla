@@ -11,7 +11,7 @@ from pydantic import Field
 
 
 path = Path(__file__).parent
-db = path / "testdb.sqlite"
+db = path / "testdb_sync.sqlite"
 
 
 class User(Model):
@@ -24,10 +24,11 @@ class User(Model):
 def cleanup():
     try:
         db.unlink(missing_ok=True)
-        engine = Engine(db)
+        engine = Engine(db, single_connection=True)
         crud = engine.crud(User)
         yield crud
     finally:
+        engine.close()
         db.unlink(missing_ok=True)
 
 

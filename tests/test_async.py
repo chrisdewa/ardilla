@@ -13,7 +13,7 @@ from ardilla.errors import QueryExecutionError
 
 
 path = Path(__file__).parent
-db = path / "testdb.sqlite"
+db = path / "testdb_async.sqlite"
 
 
 class User(Model):
@@ -28,7 +28,6 @@ async def cleanup():
         db.unlink(missing_ok=True)
         engine = Engine(db)
         crud = engine.crud(User)
-        await engine.setup()
         yield crud
     finally:
         db.unlink(missing_ok=True)

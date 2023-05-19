@@ -7,7 +7,6 @@ from ..models import M
 from ..engine import Engine
 
 from .abc import AbstractAsyncEngine
-from collections.abc import Coroutine
 
 class AsyncEngine(Engine, AbstractAsyncEngine):
     async def connect(self) -> aiosqlite.Connection:
@@ -16,13 +15,13 @@ class AsyncEngine(Engine, AbstractAsyncEngine):
         return con
 
     async def __aenter__(self) -> aiosqlite.Connection:
-        self.con = await self.connect()
+        self.acon = await self.connect()
         if self.enable_foreing_keys:
-            await self.con.execute('PRAGMA foreign_keys = on;')
-        return self.con
+            await self.acon.execute('PRAGMA foreign_keys = on;')
+        return self.acon
 
     async def __aexit__(self, *_):
-        await self.con.close()
+        await self.acon.close()
 
     async def setup(self):
         async with self as con:

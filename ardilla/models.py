@@ -2,7 +2,7 @@
 Contains the Model object and typing alias to work with the engines and Cruds
 """
 
-from typing import TypeVar, Annotated
+from typing import TypeVar
 from pydantic import BaseModel, PrivateAttr
 
 from .schemas import make_table_schema, FIELD_MAPPING, get_tablename, get_pk
