@@ -18,7 +18,7 @@ as an async (aiosqlite) version.
 ## Who and what is this for:
 
 This library is well suited for developers seeking to incorporate SQLite into their python applications to use simple C.R.U.D. methods.
-It excels in its simplicity and ease of implementation while it may not be suitable for those who require more complex querying and intricate relationships.
+It excels in its simplicity and ease of implementation while it may not be suitable for those who require more complex querying, intricate relationships or top performance.
 
 For developers who desire more advanced features, there are other libraries available, such as [tortoise-orm](https://github.com/tortoise/tortoise-orm), [sqlalchemy](https://github.com/sqlalchemy/sqlalchemy), [pony](https://github.com/ponyorm/pony) or [peewee](https://github.com/coleifer/peewee).
 
