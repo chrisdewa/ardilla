@@ -9,6 +9,11 @@ from ..engine import Engine
 from .abc import AbstractAsyncEngine
 
 class AsyncEngine(Engine, AbstractAsyncEngine):
+    def __init__(self, path: str, enable_foreing_keys: bool = False, single_connection: bool = False):
+        if single_connection is True:
+            raise NotImplementedError('The async engine does not support single connection for now')
+        super().__init__(path, enable_foreing_keys, single_connection)
+    
     async def connect(self) -> aiosqlite.Connection:
         con = await aiosqlite.connect(self.path)
         con.row_factory = aiosqlite.Row

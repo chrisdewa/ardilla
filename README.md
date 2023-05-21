@@ -10,15 +10,15 @@
 
 Ardilla (pronounced *ahr-dee-yah*) means "**SQ**uirre**L**" in spanish.
 
-A very simple library to quickly add SQLite to your program.
-It leverages pydantic for data validation and modeling.
-It comes in sync (sqlite3) and async (aiosqlite) flavors.
+This library aims to be a simple way to add an SQLite database and 
+basic C.R.U.D. methods to python applications.
+It uses pydantic for data validation and supports a sync engine as well
+as an async (aiosqlite) version.
 
 ## Who and what is this for:
 
-For developers seeking a simple and straightforward way to incorporate a SQLite database into their applications, our library is an excellent option. It offers a user-friendly solution that is both fast and easy to use.
-
-While this library may not be suitable for those who require more complex querying and intricate relationships, it excels in its simplicity and ease of implementation.
+This library is well suited for developers seeking to incorporate SQLite into their python applications to use simple C.R.U.D. methods.
+It excels in its simplicity and ease of implementation while it may not be suitable for those who require more complex querying and intricate relationships.
 
 For developers who desire more advanced features, there are other libraries available, such as [tortoise-orm](https://github.com/tortoise/tortoise-orm), [sqlalchemy](https://github.com/sqlalchemy/sqlalchemy), [pony](https://github.com/ponyorm/pony) or [peewee](https://github.com/coleifer/peewee).
 
@@ -53,21 +53,21 @@ class User(Model):
     name: str
     age: int
 
-user_crud = engine.crud(User)
+crud = engine.crud(User)
 
 def main():
-    engine.setup() # creates tables 
     # get or none
-    user = user_crud.get_or_none(id=1)
+    user = crud.get_or_none(id=1) # user with id of 1
     # get or create
-    user2, was_created = user_crud.get_or_create(id=2, name='chris', age=35)
+    user2, was_created = crud.get_or_create(id=2, name='chris', age=35)
+    # get many
+    users = crud.get_many(name='chris') # all users named chris
     # save one
     user3 = User(id=3, name='moni', age=35)
-    user_crud.save_one(user3)
+    user.age += 1 # it's her birthday
+    crud.save_one(user3)
     # save many
-    user_crud.save_many(user, user2, user3)
-    # get many
-    users = user_crud.get_many(age=35)
+    crud.save_many(user, user2, user3)
 ```
 
 ## Supported CRUD methods:

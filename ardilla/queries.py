@@ -48,28 +48,27 @@ def for_get_many(
     if kws:
         keys, vals = zip(*kws.items())
         to_match = f" AND ".join(f"{k} = ?" for k in keys)
-        filter_ = f'WHERE ({to_match})'
+        filter_ = f' WHERE ({to_match})'
     else:
         filter_ = ''
         vals = ()
         
     if order_by is not None:
         ord = validate_ordering(columns, order_by)
-        order_by = f'ORDER BY ' + ', '.join(f'{k} {v}' for k,v in ord.items())
+        order_by = f' ORDER BY ' + ', '.join(f'{k} {v}' for k,v in ord.items())
     else:
         order_by = ''
     
     if limit is not None:
         if not isinstance(limit, int) or limit < 1: 
             raise ValueError('Limit, when passed, must be an integer larger than zero')
-        limit_q = 'LIMIT ?'
+        limit_q = ' LIMIT ?'
         vals += limit,
     else:
         limit_q = ''
 
     
-    q = f"SELECT rowid, * FROM {tablename} {filter_} {order_by} {limit_q};"
-    print(q, vals)
+    q = f"SELECT rowid, * FROM {tablename}{filter_}{order_by}{limit_q};"
     return q, vals
 
 def for_do_insert(
