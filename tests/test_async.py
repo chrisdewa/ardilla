@@ -10,6 +10,7 @@ from pydantic import Field
 from ardilla import Model
 from ardilla.asyncio import Engine, Crud
 from ardilla.errors import QueryExecutionError
+from ardilla.fields import ForeignField
 
 
 path = Path(__file__).parent
@@ -239,3 +240,34 @@ async def test_delete_many_by_rowid():
         
         assert len(users) == 1, "Delete many didn't delete the correct amount of users"
 
+@pytest.mark.asyncio
+async def test_foreign_keys():
+    db = path / 'async_test.sqlite'
+    db.unlink(missing_ok=True)
+    engine = Engine(db, enable_foreing_keys=True)
+    
+    class Guild(Model):
+        id: int = Field(pk=True, auto=True)
+        name: str
+        
+    class User(Model):
+        id: int = Field(pk=True, auto=True)
+        name: str
+        guild_id: int = ForeignField(references=Guild, on_delete=ForeignField.CASCADE)
+    print(User.__schema__)
+    
+    gcrud = engine.crud(Guild)
+    ucrud = engine.crud(User)
+    
+    ga = await gcrud.insert(name='guild a')
+    gb = await gcrud.insert(name='guild b')
+    for guild in [ga, gb]:
+        for n in range(5):
+            await ucrud.insert(name=f'user {n}', guild_id=guild.id)
+    
+    users = await ucrud.get_all()
+    assert len(users) == 10
+    await gcrud.delete_one(ga)
+    users = await ucrud.get_all()
+    assert len(users) == 5 
+    db.unlink(missing_ok=True)

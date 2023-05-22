@@ -3,11 +3,12 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
-import pytest
 
 from ardilla import Engine, Model, Crud
 from ardilla.errors import QueryExecutionError
 from pydantic import Field
+
+from ardilla.fields import ForeignField
 
 
 path = Path(__file__).parent
@@ -255,3 +256,34 @@ def test_delete_many_by_rowid():
         
         
         assert len(users) == 1, "Delete many didn't delete the correct amount of users"
+
+
+def test_foreign_keys():
+    db = path / 'sync_test.sqlite'
+    db.unlink(missing_ok=True)
+    engine = Engine(db, enable_foreing_keys=True)
+    
+    class Guild(Model):
+        id: int = Field(pk=True, auto=True)
+        name: str
+        
+    class User(Model):
+        id: int = Field(pk=True, auto=True)
+        name: str
+        guild_id: int = ForeignField(references=Guild, on_delete=ForeignField.CASCADE)
+    
+    gcrud = engine.crud(Guild)
+    ucrud = engine.crud(User)
+    
+    ga = gcrud.insert(name='guild a')
+    gb = gcrud.insert(name='guild b')
+    for guild in [ga, gb]:
+        for n in range(5):
+            ucrud.insert(name=f'user {n}', guild_id=guild.id)
+    
+    users = ucrud.get_all()
+    assert len(users) == 10
+    gcrud.delete_one(ga)
+    users = ucrud.get_all()
+    assert len(users) == 5 
+    db.unlink(missing_ok=True)

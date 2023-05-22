@@ -22,7 +22,8 @@ class AsyncEngine(Engine, AbstractAsyncEngine):
     async def __aenter__(self) -> aiosqlite.Connection:
         self.acon = await self.connect()
         if self.enable_foreing_keys:
-            await self.acon.execute('PRAGMA foreign_keys = on;')
+            await self.acon.execute('PRAGMA foreign_keys = ON;')
+            
         return self.acon
 
     async def __aexit__(self, *_):

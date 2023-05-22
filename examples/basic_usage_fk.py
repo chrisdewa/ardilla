@@ -1,6 +1,6 @@
 # basic example
 
-from ardilla import Model, Engine, Field
+from ardilla import Model, Engine, Field, ForeignField
 
 engine = Engine("foo.db", enable_foreing_keys=True)
 
@@ -10,19 +10,9 @@ class Owner(Model):
 
 
 class Pet(Model):
-    __schema__ = '''
-    CREATE TABLE IF NOT EXISTS pet(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        owner_id INTEGER,
-        FOREIGN KEY (owner_id)
-            REFERENCES owner(id)
-            ON DELETE CASCADE
-    );
-    '''
     id: int = Field(pk=True, auto=True)
     name: str
-    owner_id: int
+    owner_id: int = ForeignField(references=Owner, on_delete=ForeignField.CASCADE)
     
 # create crud helpers
 owcrud = engine.crud(Owner)

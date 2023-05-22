@@ -59,6 +59,7 @@ def get_fields_schemas(Model: type[BaseModel]) -> list[str]:
         str: a string containing the formatted fields to be added to a table schema
     """
     schemas = []
+    constrains = []
     pk = None
     for field in Model.__fields__.values():
         name = field.name
@@ -100,7 +101,16 @@ def get_fields_schemas(Model: type[BaseModel]) -> list[str]:
                     
         schemas.append(schema)
 
-    return schemas
+        if extra.get('references'):
+            references, fk, on_delete, on_update = (extra.get(f) for f in ['references', 'fk', 'on_delete', 'on_update'])
+            constrains.append(
+                f'FOREIGN KEY ({name}) '
+                f'REFERENCES {references}({fk}) '
+                f'ON UPDATE {on_update} '
+                f'ON DELETE {on_delete}'
+            )
+            
+    return schemas + constrains
 
 
 def make_table_schema(Model: type[BaseModel]) -> str:
