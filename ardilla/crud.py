@@ -1,6 +1,6 @@
 import sqlite3
 from sqlite3 import Row
-from typing import Literal, Generic
+from typing import Literal, Generic, Optional, Union
 
 from .abc import CrudABC, AbstractEngine
 from .models import M
@@ -20,7 +20,7 @@ class Crud(CrudABC, Generic[M]):
         returning: bool = True,
         /,
         **kws,
-    ) -> M | None:
+    ) -> Optional[M]:
         q, vals = queries.for_do_insert(self.tablename, ignore, returning, kws)
 
         with self.engine as con:
@@ -37,14 +37,14 @@ class Crud(CrudABC, Generic[M]):
 
         return None
 
-    def get_or_none(self, **kws) -> M | None:
+    def get_or_none(self, **kws) -> Optional[M]:
         """Gets an object from a database or None if not found"""
         q, vals = queries.for_get_or_none(self.tablename, kws)
         with self.engine as con:
             ctxcur = self.engine.cursor(con)
             with ctxcur as cur:
                 cur.execute(q, vals)
-                row: Row | None = cur.fetchone()
+                row: Union[Row, None] = cur.fetchone()
                 if row:
                     return self._row2obj(row)
         return None
@@ -59,7 +59,7 @@ class Crud(CrudABC, Generic[M]):
         """
         return self._do_insert(False, True, **kws)
 
-    def insert_or_ignore(self, **kws) -> M | None:
+    def insert_or_ignore(self, **kws) -> Optional[M]:
         """inserts a the object of a row or ignores it if it already exists"""
         return self._do_insert(True, True, **kws)
 
@@ -78,8 +78,8 @@ class Crud(CrudABC, Generic[M]):
 
     def get_many(
         self,
-        order_by: dict[str, str] | None = None,
-        limit: int | None = None,
+        order_by: Optional[dict[str, str]] = None,
+        limit: Optional[int] = None,
         **kws,
     ) -> list[M]:
         """Returns a list of objects that have the given conditions"""

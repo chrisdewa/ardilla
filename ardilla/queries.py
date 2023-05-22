@@ -2,7 +2,7 @@
 Methods here are used by Crud classes to obtain the query 
 strings and variable tuples to pass to the connections and cursors
 """
-from typing import Any
+from typing import Any, Optional
 from .errors import BadQueryError
 from .models import M
 from .ordering import validate_ordering
@@ -28,8 +28,8 @@ def for_get_or_none(tablename: str, kws: dict) -> tuple[Query, Vals]:
 
 def for_get_many(
         Model: M, *, 
-        order_by: dict[str, str] | None = None,
-        limit: int | None = None,
+        order_by: Optional[dict[str, str]] = None,
+        limit: Optional[int] = None,
         kws: dict
     ) -> tuple[str, tuple[Any, ...]]:    
     """called by _get_many method

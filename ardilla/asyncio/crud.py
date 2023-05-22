@@ -1,4 +1,4 @@
-from typing import Literal, Generic, Self
+from typing import Literal, Generic, Optional, Union
 
 import aiosqlite
 from aiosqlite import Row
@@ -17,12 +17,12 @@ class AsyncCrud(CrudABC, Generic[M]):
 
     engine: AbstractAsyncEngine
 
-    async def get_or_none(self, **kws) -> M | None:
+    async def get_or_none(self, **kws) -> Optional[M]:
         """Gets an object from a database or None if not found"""
         q, vals = queries.for_get_or_none(self.tablename, kws)
         async with self.engine as con:
             async with con.execute(q, vals) as cur:
-                row: Row | None = await cur.fetchone()
+                row: Union[Row, None] = await cur.fetchone()
                 if row:
                     return self._row2obj(row)
         return None
@@ -57,7 +57,7 @@ class AsyncCrud(CrudABC, Generic[M]):
         """
         return await self._do_insert(False, True, **kws)
 
-    async def insert_or_ignore(self, **kws) -> M | None:
+    async def insert_or_ignore(self, **kws) -> Optional[M]:
         """inserts a the object of a row or ignores it if it already exists"""
         return await self._do_insert(True, True, **kws)
 
@@ -81,8 +81,8 @@ class AsyncCrud(CrudABC, Generic[M]):
 
     async def get_many(
         self,
-        order_by: dict[str, str] | None = None,
-        limit: int | None = None,
+        order_by: Optional[dict[str, str]] = None,
+        limit: Optional[int] = None,
         **kws,
     ) -> list[M]:
         """Returns a list of objects that have the given conditions"""

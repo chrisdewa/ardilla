@@ -2,7 +2,7 @@
 variables and functions here are used to generate and work with the Model's schemas
 """
 import re
-from sqlite3 import Binary
+from typing import Optional
 from datetime import datetime, date, time
 from pydantic import BaseModel, Json
 from .errors import ModelIntegrityError
@@ -132,14 +132,14 @@ def make_table_schema(Model: type[BaseModel]) -> str:
     return schema
 
 
-def get_pk(schema: str) -> str | None:
+def get_pk(schema: str) -> Optional[str]:
     """Gets the primary key field name from the passed schema
 
     Args:
         schema (str): table schema
 
     Returns:
-        str | None: the name of the primary key if any
+        Optional[str]: the name of the primary key if any
     """
     # Check if the schema contains a primary key definition
     if "PRIMARY KEY" in schema:

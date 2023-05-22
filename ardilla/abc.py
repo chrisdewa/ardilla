@@ -1,5 +1,5 @@
 import sqlite3
-from typing import Self, Literal, TypeVar, ContextManager, Protocol
+from typing import Self, Literal, TypeVar, Protocol, Optional
 from abc import abstractmethod, ABC
 from sqlite3 import Row
 
@@ -48,7 +48,7 @@ class CrudABC(ABC):
 
     engine: AbstractEngine
 
-    def __init__(self, Model: type[M], engine: AbstractEngine | None = None) -> None:
+    def __init__(self, Model: type[M], engine: Optional[AbstractEngine] = None) -> None:
         if engine:
             self.engine = engine
 
@@ -58,7 +58,7 @@ class CrudABC(ABC):
         self.tablename = Model.__tablename__
         self.columns = tuple(Model.__fields__)
 
-    def __new__(cls, Model: type[M], engine: AbstractEngine | None = None) -> Self:
+    def __new__(cls, Model: type[M], engine: Optional[AbstractEngine] = None) -> Self:
         if not issubclass(Model, BaseModel):
             raise TypeError("Model param has to be a subclass of model")
 
@@ -72,7 +72,7 @@ class CrudABC(ABC):
             )
         return super().__new__(cls)
 
-    def _row2obj(self, row: Row, rowid: int | None = None) -> BaseModel:
+    def _row2obj(self, row: Row, rowid: Optional[int] = None) -> BaseModel:
         """
         Args:
             row: the sqlite row
@@ -110,7 +110,7 @@ class CrudABC(ABC):
         pass
 
     @abstractmethod
-    def get_many(self, order_by: dict[str, str] | None = None, limit: int | None = None, **kws) -> list[M]:
+    def get_many(self, order_by: Optional[dict[str, str]] = None, limit: Optional[int] = None, **kws) -> list[M]:
         pass
 
     @abstractmethod
@@ -118,12 +118,8 @@ class CrudABC(ABC):
         pass
 
     @abstractmethod
-    def get_or_none(self, **kws) -> M | None:
+    def get_or_none(self, **kws) -> Optional[M]:
         pass
-
-    # @abstractmethod
-    # def _get_or_none_any(self, many: bool, **kws) -> list[BaseModel] | BaseModel | None:
-    #     pass
 
     # Update
     @abstractmethod

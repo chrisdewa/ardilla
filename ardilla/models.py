@@ -2,7 +2,7 @@
 Contains the Model object and typing alias to work with the engines and Cruds
 """
 
-from typing import TypeVar
+from typing import Optional, TypeVar
 from pydantic import BaseModel, PrivateAttr
 
 from .schemas import make_table_schema, FIELD_MAPPING, get_tablename, get_pk
@@ -30,8 +30,8 @@ class Model(BaseModel):
             id: int = Field(primary=True) # sets this field as the primary key
             name: str
     """
-    __rowid__: int | None = PrivateAttr(default=None)
-    __pk__: str | None  # tells the model which key to idenfity as primary
+    __rowid__: Optional[int] = PrivateAttr(default=None)
+    __pk__: Optional[str]  # tells the model which key to idenfity as primary
     __tablename__: str  # will default to the lowercase name of the subclass
     __schema__: str  # best effort will be made if it's missing
     # there's no support for constrains or foreign fields yet but you can
