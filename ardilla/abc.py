@@ -1,5 +1,5 @@
 import sqlite3
-from typing import Self, Literal, TypeVar, Protocol, Optional
+from typing import Literal, TypeVar, Protocol, Optional
 from abc import abstractmethod, ABC
 from sqlite3 import Row
 
@@ -58,14 +58,13 @@ class CrudABC(ABC):
         self.tablename = Model.__tablename__
         self.columns = tuple(Model.__fields__)
 
-    def __new__(cls, Model: type[M], engine: Optional[AbstractEngine] = None) -> Self:
+    def __new__(cls, Model: type[M], engine: Optional[AbstractEngine] = None):
         if not issubclass(Model, BaseModel):
             raise TypeError("Model param has to be a subclass of model")
 
         cls_engine = getattr(cls, "engine", None)
 
         if engine is None and cls_engine is None:
-            # if not isinstance(engine, Engine) and not isinstance(cls_engine, Engine):
             raise MissingEngine(
                 "Missing engine. Set the engine at instance level (Crud(Model, engine))"
                 "or at class level (Crud.engine = engine)"
