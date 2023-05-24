@@ -19,7 +19,7 @@ class Model(BaseModel):
             contain the rowid field that can be used for update and deletion.
         __pk__ (str | None): Holds the primary key column name of the table
         __tablename__ (str): the name of the table in the database
-        __schema__(str): the schema for the table. Should start with `CREATE TABLE IF NOT EXISTS`
+        __schema__(str): the schema for the table.
         
     Usage Example:
         from ardilla import Model, Field

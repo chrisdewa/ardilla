@@ -21,15 +21,23 @@ class ContextCursor(ContextCursorProtocol):
 
 
 class Engine(AbstractEngine):
-    __slots__ = (
-        'path',
-        'schemas',
-        '_cruds',
-        'tables_created',
-        'enable_foreing_keys',
-        'con',
-        'single_connection',
-        'acon',
+    """Represents the sync engine that uses `sqlite3.connection`
+    
+    Args (init):
+        path (str): a pathlike object that points to the sqlite database
+        enable_foreing_keys (bool, optional): specifies if the pragma should be enforced. Defaults to False.
+        single_connection (bool, optional): specifies if the engine should maintain a single connectio. Defaults to False.
+    """
+    
+    __slots__ = ( 
+        'path', # the path to the database
+        'schemas', # the registered tables
+        '_cruds', # the crud cache for the registered models
+        'tables_created', # a list of tables that were setup
+        'enable_foreing_keys', # a bool to specify if the pragma should be enforced
+        'con', # the sync connection
+        'single_connection', # if the engine should maintain a single connection
+        'acon', # the async connection
     )
     def __init__(
         self,
