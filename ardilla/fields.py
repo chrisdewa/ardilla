@@ -1,13 +1,12 @@
 from pydantic import Field
 from ardilla import Model
 
-from .utils import SingletonMeta
-
-class _ForeignFieldMaker(metaclass=SingletonMeta):
+class _ForeignFieldMaker():
     """
     Helper class to generate foreing key field constrains.
-    The class is a singleton. 
-    The developer should use the instantiated `ardilla.fields.ForeignKey`
+    
+    Intead of instantiating this class the developer should use 
+    the already instantiated `ardilla.fields.ForeignKey`
     instead of directly instantiating this class.
     
     Class Attributes
