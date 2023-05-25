@@ -1,3 +1,4 @@
+
 site_name: ardilla
 site_url: https://ardilla.rtfm.com/
 
@@ -12,5 +13,5 @@ nav:
 
 extra_css:
   - css/custom.css
-  
+
 
