@@ -1,0 +1,16 @@
+site_name: ardilla
+site_url: https://ardilla.rtfm.com/
+
+nav:
+  - Guide:
+    - guide/getting_started.md
+    - guide/models.md
+    - guide/fields.md
+    - guide/engine.md
+    - guide/crud.md
+  - Licence: licence.md
+
+extra_css:
+  - css/custom.css
+  
+

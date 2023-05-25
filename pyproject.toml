@@ -4,13 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ardilla"
-version = "0.1.0-beta"
+version = "0.1.1-beta"
 authors = [
   { name="ChrisDewa", email="chrisdewa@duck.com" },
 ]
 description = "Ardilla ORM. Easy to use, fast to implement, with sync and async flavors"
 readme = "README.md"
 requires-python = ">=3.9"
+
 classifiers = [
   "Intended Audience :: Developers",
   "Programming Language :: Python :: 3 :: Only",
@@ -31,7 +32,8 @@ examples = ["fastapi-0.95.1", "uvicorn-0.22.0"]
 dev = [
   "pytest==7.3.1", # testing
   "pytest-asyncio==0.21.0", # testing async
-  "black==23.3.0" # formating
+  "black==23.3.0", # formating
+  "mkdocs==1.4.3"
 ]
 
 [project.urls]

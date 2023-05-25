@@ -1,0 +1,5 @@
+/* Add your logo */
+.md-header__title:before {
+    content: url("../img/ardilla_logo.png");
+    margin-right: 8px; /* Adjust the margin as needed */
+  }

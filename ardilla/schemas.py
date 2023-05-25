@@ -67,6 +67,10 @@ def get_fields_schemas(Model: type[BaseModel]) -> list[str]:
         default = field.default
         extra = field.field_info.extra
         auto = extra.get('auto')
+        unique = extra.get('unique')
+        if default and unique:
+            raise ModelIntegrityError("field {name} has both unique and default constrains which are incompatible")
+        
         autoerror = ModelIntegrityError(f'field {name} has a type of "{T}" which does not support "auto"')
         schema = f'{name} {FIELD_MAPPING[T]}'
         for k in {'pk', 'primary', 'primary_key'}:
@@ -89,7 +93,7 @@ def get_fields_schemas(Model: type[BaseModel]) -> list[str]:
                 schema += AUTOFIELDS[T]
             elif auto:
                 raise autoerror
-            elif default:
+            elif default is not None:
                 if T in {int, str, float, bool}:
                     schema += f' DEFAULT {default!r}'
                 elif T in {datetime, date, time}:
@@ -98,6 +102,8 @@ def get_fields_schemas(Model: type[BaseModel]) -> list[str]:
                     schema += f" DEFAULT (X'{default.hex()}')"
             elif field.required:
                     schema += ' NOT NULL'
+            if unique:
+                schema += ' UNIQUE'
                     
         schemas.append(schema)
 

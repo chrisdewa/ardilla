@@ -30,6 +30,7 @@ class _ForeignFieldMaker():
         references: type[Model],
         on_delete: str = NO_ACTION, 
         on_update: str = NO_ACTION,
+        **kws,
     ):
         """
         Args:
@@ -58,6 +59,7 @@ class _ForeignFieldMaker():
             fk=fk,
             on_delete=on_delete,
             on_update=on_update,
+            **kws
         )
 
 ForeignField = _ForeignFieldMaker()
