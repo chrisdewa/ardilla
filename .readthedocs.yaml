@@ -12,3 +12,7 @@ python:
         - docs
     - method: pip
       path: package
+
+build:
+  tools:
+    python: ["3.9", "3.10", "3.11"]
