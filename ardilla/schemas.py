@@ -2,7 +2,7 @@
 variables and functions here are used to generate and work with the Model's schemas
 """
 import re
-from typing import Optional
+from typing import Optional, Union
 from datetime import datetime, date, time
 from pydantic import BaseModel, Json
 from .errors import ModelIntegrityError
@@ -10,6 +10,7 @@ from .errors import ModelIntegrityError
 
 SCHEMA_TEMPLATE: str = "CREATE TABLE IF NOT EXISTS {tablename} (\n{fields}\n);"
 
+SQLFieldType = Union[int,float,str,bool,datetime,bytes,date,time]
 
 FIELD_MAPPING: dict[type, str] = {
     int: "INTEGER",
@@ -20,7 +21,6 @@ FIELD_MAPPING: dict[type, str] = {
     bytes: "BLOB",
     date: "DATE",
     time: "TIME",
-    Json: "TEXT",
 }
 
 AUTOFIELDS = {
@@ -29,7 +29,6 @@ AUTOFIELDS = {
     date: " DEFAULT CURRENT_DATE",
     time: " DEFAULT CURRENT_TIME"
 }
-
 
 def get_tablename(model: type[BaseModel]) -> str:
     """returns the tablename of a model either from the attribute __tablenam__

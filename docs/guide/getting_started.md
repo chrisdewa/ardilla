@@ -1,5 +1,12 @@
 # Getting started
 
+## Introduction
+
+Ardilla is specifically desiged to ease of use with intermedium developers in mind. 
+The library help you abstract SQLite interactions in a simple pythonic way.
+
+There is a clear tradeoff in flexibility and performace. If you require more complex database designs or interactions or a more performant solution, please take a look at [alternative libraries](../ardilla_alternatives.md).
+
 ## Installation
 
 ```

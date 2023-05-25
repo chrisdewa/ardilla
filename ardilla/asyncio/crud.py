@@ -7,6 +7,7 @@ from ..errors import QueryExecutionError
 from ..models import M
 from ..abc import CrudABC
 from ..logging import log
+from ..schemas import SQLFieldType
 from .. import queries
 
 from .abc import AbstractAsyncEngine
@@ -17,8 +18,22 @@ class AsyncCrud(CrudABC, Generic[M]):
 
     engine: AbstractAsyncEngine
 
-    async def get_or_none(self, **kws) -> Optional[M]:
-        """Gets an object from a database or None if not found"""
+    async def get_or_none(self, **kws: SQLFieldType) -> Optional[M]:
+        """Returns a row as an instance of the model if one is found or none
+
+        Args:
+            kws (SQLFieldType): The keyword arguments are passed as column names and values to
+                a select query
+
+        Example:
+            ```py
+            await crud.get_or_none(id=42)
+
+            # returns an object with id of 42 or None if there isn't one in the database
+            ```
+        Returns:
+            The object found with the criteria if any
+        """
         q, vals = queries.for_get_or_none(self.tablename, kws)
         async with self.engine as con:
             async with con.execute(q, vals) as cur:
@@ -27,7 +42,26 @@ class AsyncCrud(CrudABC, Generic[M]):
                     return self._row2obj(row)
         return None
 
-    async def _do_insert(self, ignore: bool = False, returning: bool = True, /, **kws):
+    async def _do_insert(
+        self,
+        ignore: bool = False,
+        returning: bool = True,
+        /,
+        **kws: SQLFieldType,
+    ):
+        """private helper method for insertion methods
+
+        Args:
+            ignore (bool, optional): Ignores conflicts silently. Defaults to False.
+            returning (bool, optional): Determines if the query should return the inserted row. Defaults to True.
+            kws (SQLFieldType): the column names and values for the insertion query
+
+        Raises:
+            QueryExecutionError: when sqlite3.IntegrityError happens because of a conflic
+
+        Returns:
+            An instance of model if any row is returned
+        """
         q, vals = queries.for_do_insert(self.tablename, ignore, returning, kws)
 
         async with self.engine as con:
@@ -47,22 +81,41 @@ class AsyncCrud(CrudABC, Generic[M]):
                     await cur.close()
                 await con.close()
 
-    async def insert(self, **kws):
+    async def insert(self, **kws: SQLFieldType) -> M:
         """
         Inserts a record into the database.
+
+        Args:
+            kws (SQLFieldType): the column names and values for the insertion query
+
         Returns:
-            Model | None: Returns a model only if newly created
+            Returns the inserted row as an instance of the model
         Rises:
             ardilla.error.QueryExecutionError: if there's a conflict when inserting the record
         """
         return await self._do_insert(False, True, **kws)
 
-    async def insert_or_ignore(self, **kws) -> Optional[M]:
-        """inserts a the object of a row or ignores it if it already exists"""
+    async def insert_or_ignore(self, **kws: SQLFieldType) -> Optional[M]:
+        """Inserts a record to the database with the keywords passed. It ignores conflicts.
+
+        Args:
+            kws (SQLFieldType): The keyword arguments are passed as the column names and values
+                to the insert query
+
+        Returns:
+            The newly created row as an instance of the model if there was no conflicts
+        """
         return await self._do_insert(True, True, **kws)
 
-    async def get_or_create(self, **kws) -> tuple[M, bool]:
-        """Returns object and bool indicated if it was created or not"""
+    async def get_or_create(self, **kws: SQLFieldType) -> tuple[M, bool]:
+        """Returns an object from the database with the spefied matching data
+        Args:
+            kws (SQLFieldType): the key value pairs will be used to query for an existing row
+                if no record is found then a new row will be inserted
+        Returns:
+            A tuple with two values, the object and a boolean indicating if the
+                object was newly created or not
+        """
         created = False
         result = await self.get_or_none(**kws)
         if not result:
@@ -71,7 +124,11 @@ class AsyncCrud(CrudABC, Generic[M]):
         return result, created
 
     async def get_all(self) -> list[M]:
-        """Gets all objects from the database"""
+        """Gets all objects from the database
+        
+        Returns:
+            A list with all the rows in table as instances of the model
+        """
         q = f"SELECT rowid, * FROM {self.tablename};"
         log.debug(f"Querying: {q}")
 
@@ -83,17 +140,38 @@ class AsyncCrud(CrudABC, Generic[M]):
         self,
         order_by: Optional[dict[str, str]] = None,
         limit: Optional[int] = None,
-        **kws,
+        **kws: SQLFieldType,
     ) -> list[M]:
-        """Returns a list of objects that have the given conditions"""
-        q, vals = queries.for_get_many(self.Model, order_by=order_by, limit=limit, kws=kws)
+        """Queries the database and returns objects that meet the criteris
+
+        Args:
+            order_by (Optional[dict[str, str]], optional): An ordering dict. Defaults to None.
+                The ordering should have the structure: `{'column_name': 'ASC' OR 'DESC'}`
+                Case in values is insensitive
+            kws (SQLFieldType): the column names and values for the select query
+
+            limit (Optional[int], optional): The number of items to return. Defaults to None.
+
+        Returns:
+            a list of rows matching the criteria as intences of the model
+        """
+        q, vals = queries.for_get_many(
+            self.Model, order_by=order_by, limit=limit, kws=kws
+        )
         async with self.engine as con:
             async with con.execute(q, vals) as cur:
                 rows: list[Row] = await cur.fetchall()
                 return [self._row2obj(row) for row in rows]
 
     async def save_one(self, obj: M) -> Literal[True]:
-        """Saves one object to the database"""
+        """Saves one object to the database
+
+        Args:
+            obj (M): the object to persist
+
+        Returns:
+            The literal `True` if the method ran successfuly
+        """
         q, vals = queries.for_save_one(obj)
 
         async with self.engine as con:
@@ -102,7 +180,14 @@ class AsyncCrud(CrudABC, Generic[M]):
         return True
 
     async def save_many(self, *objs: M) -> Literal[True]:
-        """Saves all the given objects to the database"""
+        """Saves all the passed objects to the database
+
+        Args:
+            objs (M): the objects to persist
+
+        Returns:
+            The literal `True` if the method ran successfuly
+        """
         q, vals = queries.for_save_many(objs)
 
         async with self.engine as con:
@@ -114,7 +199,17 @@ class AsyncCrud(CrudABC, Generic[M]):
     async def delete_one(self, obj: M) -> Literal[True]:
         """
         Deletes the object from the database (won't delete the actual object)
-        queries only by the Model id fields (fields suffixed with 'id')
+        If the object has a PK field or the rowid setup, those will be
+        used to locate the obj and delete it.
+        If not, this function will delete any row that meets the values of the object
+
+
+        Args:
+            obj (M): the object to delete
+
+        Returns:
+            The literal `True` if the method ran successfuly
+
         """
         q, vals = queries.for_delete_one(obj)
 
@@ -124,10 +219,18 @@ class AsyncCrud(CrudABC, Generic[M]):
         return True
 
     async def delete_many(self, *objs: M) -> Literal[True]:
+        """
+        Deletes all the objects passed
+
+        Args:
+            objs (M): the object to delete
+
+        Returns:
+            The literal `True` if the method ran successfuly
+
+        """
         q, vals = queries.for_delete_many(objs)
 
         async with self.engine as con:
             await con.execute(q, vals)
             await con.commit()
-
-        

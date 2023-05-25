@@ -9,9 +9,14 @@ nav:
     - guide/fields.md
     - guide/engine.md
     - guide/crud.md
+  - API Reference:
+    - api_ref/crud.md
   - Licence: licence.md
+  - Library Alternatives: ardilla_alternatives.md
 
 extra_css:
   - css/custom.css
 
+plugins:
+  - mkdocstrings
 
