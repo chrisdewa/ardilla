@@ -11,6 +11,8 @@ nav:
     - guide/crud.md
   - API Reference:
     - api_ref/crud.md
+    - api_ref/model.md
+    - api_ref/engine.md
   - Licence: licence.md
   - Library Alternatives: ardilla_alternatives.md
 

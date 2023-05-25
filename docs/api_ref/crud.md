@@ -1,7 +1,7 @@
-# The CRUD classes
+# CRUD Classes
 
-## Sync CRUD
+# Sync CRUD
 ::: ardilla.crud.Crud
 
-## Async CRUD
+# Async CRUD
 ::: ardilla.asyncio.crud.AsyncCrud

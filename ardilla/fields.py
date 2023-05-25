@@ -1,3 +1,4 @@
+from typing import Any
 from pydantic import Field
 from ardilla import Model
 
@@ -9,13 +10,12 @@ class _ForeignFieldMaker():
     the already instantiated `ardilla.fields.ForeignKey`
     instead of directly instantiating this class.
     
-    Class Attributes
-        NO_ACTION - The database won't take action. This most likely will result in errors
-        RESTRICT - The app will not be able to delete the foreing row unless there's no related child elements left
-        SET_NULL - The app will set the child to Null if the parent is deleted
-        SET_DEFAULT - Returns the value of this field to the default of the child when the parent is deleted or updated
-        CASCADE - If the parent gets deleted or updated the child follows
-            
+    Attributes:
+        NO_ACTION (str): (class attribute) The database won't take action. This most likely will result in errors
+        RESTRICT (str): (class attribute) The app will not be able to delete the foreing row unless there's no related child elements left
+        SET_NULL (str): (class attribute) The app will set the child to Null if the parent is deleted
+        SET_DEFAULT (str): (class attribute) Returns the value of this field to the default of the child when the parent is deleted or updated
+        CASCADE (str): (class attribute) If the parent gets deleted or updated the child follows  
         
     """
     NO_ACTION = 'NO ACTION'
@@ -31,20 +31,20 @@ class _ForeignFieldMaker():
         on_delete: str = NO_ACTION, 
         on_update: str = NO_ACTION,
         **kws,
-    ):
+    ) -> Any:
         """
         Args:
             references (type[Model]):
                 The model this foreign key points to
-            on_delete (str) defaults to 'NO ACTION':
+            on_delete (str): defaults to 'NO ACTION'
                 what happens when the referenced row gets deleted
-            on_update (str) defaults to 'NO ACTION':
+            on_update (str): defaults to 'NO ACTION'
                 what happens when the referenced row gets updated
         Returns:
             A `pydantic.Field` with extra metadata for the schema creation
-        raises:
-            KeyError if the referenced value is not a type of model
-            ValueError if the referenced model does not have a primary key or has not yet been instantiated
+        Raises:
+            KeyError: if the referenced value is not a type of model
+            ValueError: if the referenced model does not have a primary key or has not yet been instantiated
         """
         if not issubclass(references, Model):
             raise TypeError('The referenced type must be a subclass of ardilla.Model')

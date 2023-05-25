@@ -14,14 +14,15 @@ class Model(BaseModel):
     The base model representing SQLite tables
     Inherits directly from pydantic.BaseModel
     
-    Additional Attributes:
-        __rowid__ (int | None): when an object is returned by a query it will 
+    Attributes:
+        __rowid__ (int | None): (class attribute) when an object is returned by a query it will 
             contain the rowid field that can be used for update and deletion.
-        __pk__ (str | None): Holds the primary key column name of the table
-        __tablename__ (str): the name of the table in the database
-        __schema__(str): the schema for the table.
+        __pk__ (str | None): (class attribute) Holds the primary key column name of the table
+        __tablename__ (str): (class attribute) the name of the table in the database
+        __schema__(str): the (class attribute) schema for the table.
         
-    Usage Example:
+    Example:
+        ```py
         from ardilla import Model, Field
         # Field is actually pydantic.Field but it's imported here for the convenience of the developer
         
@@ -29,6 +30,7 @@ class Model(BaseModel):
             __tablename__ = 'users' # by default the tablename is just the model's name in lowercase
             id: int = Field(primary=True) # sets this field as the primary key
             name: str
+        ```
     """
     __rowid__: Optional[int] = PrivateAttr(default=None)
     __pk__: Optional[str]  # tells the model which key to idenfity as primary
