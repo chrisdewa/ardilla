@@ -1,6 +1,8 @@
 
 site_name: ardilla
 site_url: https://ardilla.rtfm.com/
+site_author: ChrisDewa
+site_description: A simplistic and easy to use sqlite python ORM with pydantic models
 
 nav:
   - Guide:
