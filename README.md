@@ -24,6 +24,12 @@ It excels in its simplicity and ease of implementation while it may not be suita
 For developers who desire more advanced features, there are other libraries available, such as [tortoise-orm](https://github.com/tortoise/tortoise-orm), [sqlalchemy](https://github.com/sqlalchemy/sqlalchemy), [pony](https://github.com/ponyorm/pony) or [peewee](https://github.com/coleifer/peewee).
 
 
+## Links
+
+Find Ardilla's source code [here](https://github.com/chrisdewa/ardilla)
+
+Documentation can be accessed [here](http://ardilla.rtfd.io/)
+
 ## install
 Install lastest release from PyPi
 ```bash

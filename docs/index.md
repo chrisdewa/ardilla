@@ -15,9 +15,11 @@ basic C.R.U.D. methods to python applications.
 It uses pydantic for data validation and supports a sync engine as well
 as an async (aiosqlite) version.
 
-## Project's home
+## Links
 
 Find Ardilla's source code [here](https://github.com/chrisdewa/ardilla)
+
+Documentation can be accessed [here](http://ardilla.rtfd.io/)
 
 ## Who and what is this for
 
