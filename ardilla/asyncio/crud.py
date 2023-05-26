@@ -1,3 +1,5 @@
+from __future__ import annotations
+from functools import wraps
 from typing import Literal, Generic, Optional, Union
 
 import aiosqlite
@@ -13,11 +15,25 @@ from .. import queries
 from .abc import AbstractAsyncEngine
 
 
+def async_verify_kws(coro):
+    """
+    Decorator for sync Crud methods to prevent
+    injection in the keys of the CRUD methods
+    """
+    @wraps(coro)
+    async def wrapper(self: AsyncCrud, *ags, **kws):
+        for key in kws:
+            if key not in self.Model.__fields__:
+                raise KeyError(f'"{key}" is not a field of the "{self.Model.__name__}" and cannot be used in queries')
+        return await coro(self, *ags, **kws)
+    return wrapper
+
 class AsyncCrud(CrudABC, Generic[M]):
     """Abstracts CRUD actions for model associated tables"""
 
     engine: AbstractAsyncEngine
 
+    @async_verify_kws
     async def get_or_none(self, **kws: SQLFieldType) -> Optional[M]:
         """Returns a row as an instance of the model if one is found or none
 
@@ -81,6 +97,7 @@ class AsyncCrud(CrudABC, Generic[M]):
                     await cur.close()
                 await con.close()
 
+    @async_verify_kws
     async def insert(self, **kws: SQLFieldType) -> M:
         """
         Inserts a record into the database.
@@ -95,6 +112,7 @@ class AsyncCrud(CrudABC, Generic[M]):
         """
         return await self._do_insert(False, True, **kws)
 
+    @async_verify_kws
     async def insert_or_ignore(self, **kws: SQLFieldType) -> Optional[M]:
         """Inserts a record to the database with the keywords passed. It ignores conflicts.
 
@@ -107,6 +125,7 @@ class AsyncCrud(CrudABC, Generic[M]):
         """
         return await self._do_insert(True, True, **kws)
 
+    @async_verify_kws
     async def get_or_create(self, **kws: SQLFieldType) -> tuple[M, bool]:
         """Returns an object from the database with the spefied matching data
         Args:
@@ -122,7 +141,7 @@ class AsyncCrud(CrudABC, Generic[M]):
             result = await self.insert_or_ignore(**kws)
             created = True
         return result, created
-
+    
     async def get_all(self) -> list[M]:
         """Gets all objects from the database
         
@@ -155,6 +174,10 @@ class AsyncCrud(CrudABC, Generic[M]):
         Returns:
             a list of rows matching the criteria as intences of the model
         """
+        for key in kws:
+            if key not in self.Model.__fields__:
+                raise KeyError(f'"{key}" is not a field of the "{self.Model.__name__}" and cannot be used in queries')
+            
         q, vals = queries.for_get_many(
             self.Model, order_by=order_by, limit=limit, kws=kws
         )

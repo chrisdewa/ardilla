@@ -1,3 +1,5 @@
+from __future__ import annotations
+from functools import wraps
 import sqlite3
 from sqlite3 import Row
 from typing import Literal, Generic, Optional, Union
@@ -9,6 +11,19 @@ from .logging import log
 from .schemas import SQLFieldType
 from . import queries
 
+
+def verify_kws(f):
+    """
+    Decorator for sync Crud methods to prevent
+    injection in the keys of the CRUD methods
+    """
+    @wraps(f)
+    def wrapper(self: Crud, *ags, **kws):
+        for key in kws:
+            if key not in self.Model.__fields__:
+                raise KeyError(f'"{key}" is not a field of the "{self.Model.__name__}" and cannot be used in queries')
+        return f(self, *ags, **kws)
+    return wrapper
 
 class Crud(CrudABC, Generic[M]):
     """Abstracts CRUD actions for model associated tables"""
@@ -51,6 +66,7 @@ class Crud(CrudABC, Generic[M]):
 
         return None
 
+    @verify_kws
     def get_or_none(self, **kws: SQLFieldType) -> Optional[M]:
         """Returns a row as an instance of the model if one is found or none
 
@@ -78,6 +94,7 @@ class Crud(CrudABC, Generic[M]):
                     return self._row2obj(row)
         return None
 
+    @verify_kws
     def insert(self, **kws: SQLFieldType) -> M:
         """Inserts a record into the database.
         
@@ -93,6 +110,7 @@ class Crud(CrudABC, Generic[M]):
         """
         return self._do_insert(False, True, **kws)
 
+    @verify_kws
     def insert_or_ignore(self, **kws: SQLFieldType) -> Optional[M]:
         """Inserts a record to the database with the keywords passed. It ignores conflicts.
         
@@ -105,6 +123,8 @@ class Crud(CrudABC, Generic[M]):
         """
         return self._do_insert(True, True, **kws)
 
+
+    @verify_kws
     def get_or_create(self, **kws: SQLFieldType) -> tuple[M, bool]:
         """Returns an object from the database with the spefied matching data
         Args:
@@ -147,6 +167,9 @@ class Crud(CrudABC, Generic[M]):
         Returns:
             a list of rows matching the criteria as intences of the model
         """
+        for key in kws:
+            if key not in self.Model.__fields__:
+                raise KeyError(f'"{key}" is not a field of the "{self.Model.__name__}" and cannot be used in queries')
         q, vals = queries.for_get_many(self.Model, order_by=order_by, limit=limit, kws=kws)
         with self.engine as con:
             ctxcur = self.engine.cursor(con)

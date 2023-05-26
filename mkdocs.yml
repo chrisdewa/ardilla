@@ -18,9 +18,6 @@ nav:
   - Licence: licence.md
   - Library Alternatives: ardilla_alternatives.md
 
-extra_css:
-  - css/custom.css
-
 plugins:
   - mkdocstrings
 
