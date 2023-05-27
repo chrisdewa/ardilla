@@ -1,62 +1,20 @@
 from __future__ import annotations
-from functools import wraps
 from typing import Literal, Generic, Optional, Union
 
 import aiosqlite
 from aiosqlite import Row
 
-from ..errors import QueryExecutionError
+from ..errors import QueryExecutionError, disconnected_engine_error
 from ..models import M
-from ..abc import CrudABC
-from ..logging import log
+from ..abc import BaseCrud
 from ..schemas import SQLFieldType
 from .. import queries
 
-from .abc import AbstractAsyncEngine
 
-
-def async_verify_kws(coro):
-    """
-    Decorator for sync Crud methods to prevent
-    injection in the keys of the CRUD methods
-    """
-    @wraps(coro)
-    async def wrapper(self: AsyncCrud, *ags, **kws):
-        for key in kws:
-            if key not in self.Model.__fields__:
-                raise KeyError(f'"{key}" is not a field of the "{self.Model.__name__}" and cannot be used in queries')
-        return await coro(self, *ags, **kws)
-    return wrapper
-
-class AsyncCrud(CrudABC, Generic[M]):
+class AsyncCrud(BaseCrud, Generic[M]):
     """Abstracts CRUD actions for model associated tables"""
 
-    engine: AbstractAsyncEngine
-
-    @async_verify_kws
-    async def get_or_none(self, **kws: SQLFieldType) -> Optional[M]:
-        """Returns a row as an instance of the model if one is found or none
-
-        Args:
-            kws (SQLFieldType): The keyword arguments are passed as column names and values to
-                a select query
-
-        Example:
-            ```py
-            await crud.get_or_none(id=42)
-
-            # returns an object with id of 42 or None if there isn't one in the database
-            ```
-        Returns:
-            The object found with the criteria if any
-        """
-        q, vals = queries.for_get_or_none(self.tablename, kws)
-        async with self.engine as con:
-            async with con.execute(q, vals) as cur:
-                row: Union[Row, None] = await cur.fetchone()
-                if row:
-                    return self._row2obj(row)
-        return None
+    connection: aiosqlite.Connection
 
     async def _do_insert(
         self,
@@ -80,24 +38,47 @@ class AsyncCrud(CrudABC, Generic[M]):
         """
         q, vals = queries.for_do_insert(self.tablename, ignore, returning, kws)
 
-        async with self.engine as con:
-            con = await self.engine.connect()
-            cur = None
-            try:
-                cur = await con.execute(q, vals)
-            except aiosqlite.IntegrityError as e:
-                raise QueryExecutionError(str(e))
-            else:
-                row = await cur.fetchone()
-                await con.commit()
-                if returning and row:
-                    return self._row2obj(row, cur.lastrowid)
-            finally:
-                if cur is not None:
-                    await cur.close()
-                await con.close()
+        cur = None
+        try:
+            cur = await self.connection.execute(q, vals)
+        except aiosqlite.IntegrityError as e:
+            raise QueryExecutionError(str(e))
+        except aiosqlite.ProgrammingError as e:
+            raise disconnected_engine_error
+        else:
+            row = await cur.fetchone()
+            await self.connection.commit()
+            if returning and row:
+                return self._row2obj(row, cur.lastrowid)
+        finally:
+            if cur is not None:
+                await cur.close()
 
-    @async_verify_kws
+    async def get_or_none(self, **kws: SQLFieldType) -> Optional[M]:
+        """Returns a row as an instance of the model if one is found or none
+
+        Args:
+            kws (SQLFieldType): The keyword arguments are passed as column names and values to
+                a select query
+
+        Example:
+            ```py
+            await crud.get_or_none(id=42)
+
+            # returns an object with id of 42 or None if there isn't one in the database
+            ```
+        Returns:
+            The object found with the criteria if any
+        """
+        self.verify_kws(kws)
+        q, vals = queries.for_get_or_none(self.tablename, kws)
+
+        async with self.connection.execute(q, vals) as cur:
+            row: Union[Row, None] = await cur.fetchone()
+            if row:
+                return self._row2obj(row)
+        return None
+
     async def insert(self, **kws: SQLFieldType) -> M:
         """
         Inserts a record into the database.
@@ -110,9 +91,9 @@ class AsyncCrud(CrudABC, Generic[M]):
         Rises:
             ardilla.error.QueryExecutionError: if there's a conflict when inserting the record
         """
+        self.verify_kws(kws)
         return await self._do_insert(False, True, **kws)
 
-    @async_verify_kws
     async def insert_or_ignore(self, **kws: SQLFieldType) -> Optional[M]:
         """Inserts a record to the database with the keywords passed. It ignores conflicts.
 
@@ -123,9 +104,9 @@ class AsyncCrud(CrudABC, Generic[M]):
         Returns:
             The newly created row as an instance of the model if there was no conflicts
         """
+        self.verify_kws(kws)
         return await self._do_insert(True, True, **kws)
 
-    @async_verify_kws
     async def get_or_create(self, **kws: SQLFieldType) -> tuple[M, bool]:
         """Returns an object from the database with the spefied matching data
         Args:
@@ -141,19 +122,17 @@ class AsyncCrud(CrudABC, Generic[M]):
             result = await self.insert_or_ignore(**kws)
             created = True
         return result, created
-    
+
     async def get_all(self) -> list[M]:
         """Gets all objects from the database
-        
+
         Returns:
             A list with all the rows in table as instances of the model
         """
         q = f"SELECT rowid, * FROM {self.tablename};"
-        log.debug(f"Querying: {q}")
 
-        async with self.engine as con:
-            async with con.execute(q) as cur:
-                return [self._row2obj(row) for row in await cur.fetchall()]
+        async with self.connection.execute(q) as cur:
+            return [self._row2obj(row) for row in await cur.fetchall()]
 
     async def get_many(
         self,
@@ -174,10 +153,8 @@ class AsyncCrud(CrudABC, Generic[M]):
         Returns:
             a list of rows matching the criteria as intences of the model
         """
-        for key in kws:
-            if key not in self.Model.__fields__:
-                raise KeyError(f'"{key}" is not a field of the "{self.Model.__name__}" and cannot be used in queries')
-            
+        self.verify_kws(kws)
+
         q, vals = queries.for_get_many(
             self.Model, order_by=order_by, limit=limit, kws=kws
         )

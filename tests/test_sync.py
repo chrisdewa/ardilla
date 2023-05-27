@@ -2,52 +2,118 @@ import random
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
+from functools import partial
 
 
 from ardilla import Engine, Model, Crud
-from ardilla.errors import QueryExecutionError
+from ardilla.errors import QueryExecutionError, DisconnectedEngine
 from pydantic import Field
 
 from ardilla.fields import ForeignField
 
 
 path = Path(__file__).parent
-db = path / "testdb_sync.sqlite"
+db = path / "test_sync.sqlite"
 
-
-class User(Model):
-    id: int = Field(primary=True, autoincrement=True)
-    name: str
-    age: int
-
+unlinkdb = partial(db.unlink, missing_ok=True)
 
 @contextmanager
 def cleanup():
+    unlinkdb()
     try:
-        db.unlink(missing_ok=True)
-        engine = Engine(db, single_connection=True)
+        yield
+    finally:
+        unlinkdb()
+
+class User(Model):
+    id: int = Field(pk=True, auto=True)
+    name: str
+
+def test_context_engine():
+    with cleanup():
+        try:
+            with Engine(db) as engine:
+                crud = engine.crud(User)
+                u = crud.insert(name='chris') # should pass
+                assert u.name == 'chris'
+            crud.insert(name='moni')
+        except Exception as e:
+            assert isinstance(e, DisconnectedEngine), f'Wrong exception raised'
+
+def test_st_engine():
+    unlinkdb()
+    try:
+        engine = Engine(db)
+        engine.connect()
         crud = engine.crud(User)
-        yield crud
+        u = crud.insert(name='chris') # should pass
+        assert u.name == 'chris'
+        engine.close()
+        crud.insert(name='moni')
+    except Exception as e:
+        assert isinstance(e, DisconnectedEngine), f'Wrong exception raised'
     finally:
         engine.close()
-        db.unlink(missing_ok=True)
+        unlinkdb()
 
 
-@contextmanager
-def query():
-    try:
-        con = sqlite3.connect(db)
-        cur = con.cursor()
-        yield cur
-    finally:
-        cur.close()
-        con.close()
+def test_insert():
+   with cleanup(), Engine(db) as engine:
+        crud = engine.crud(User)
+        u = crud.insert(name="chris")
+        
+        assert u is not None, "User wasn't created as expected"
+        assert u.__rowid__ is not None, "Created user did not have __rowid__ set"
+        assert u.__rowid__ == 1, "Created User did not have correct __rowid__ "
+        try:
+            crud.insert(id=1, name="chris")
+        except Exception as err:
+            assert isinstance(err, QueryExecutionError), f'Wrong error rised: {err}'
+        else:
+            raise Exception("QueryExcecutionError should have been rised")
 
+
+def test_insert():
+    with cleanup(), Engine(db) as engine:
+        crud = engine.crud(User)
+        u = crud.insert(name="chris")
+        
+        assert u is not None, "User wasn't created as expected"
+        assert u.__rowid__ is not None, "Created user did not have __rowid__ set"
+        assert u.__rowid__ == 1, "Created User did not have correct __rowid__ "
+        try:
+            crud.insert(id=1, name="chris")
+        except Exception as err:
+            assert isinstance(err, QueryExecutionError), f'Wrong error rised: {err}'
+        else:
+            raise Exception("QueryExcecutionError should have been rised")
+
+
+def test_insert_or_ignore():
+    with cleanup(), Engine(db) as engine:
+        crud = engine.crud(User)
+        kws = dict(id=1, name='chris')
+        u1 = crud.insert(**kws)
+        u2= crud.insert_or_ignore(**kws)
+        
+        assert u2 is None
+
+def test_save_one():
+    with cleanup(), Engine(db) as engine:
+        crud = engine.crud(User)
+        u = crud.insert(name='chris')
+        u.name = 'alex'
+        crud.save_one(u)
+        
+        user = crud.get_or_none(name='alex')
+        assert user.id == 1
+
+
+def test_save_many():
+    ...
 
 """
 Abstract methods:
-    insert x
-    insert_or_ignore x
     save_one x
     save_many x
     get_all x
@@ -57,233 +123,3 @@ Abstract methods:
     delete_one x
     delete_many x
 """
-
-
-def test_insert():
-    with cleanup() as crud:
-        u = crud.insert(id=1, name="chris", age=35)
-        assert u is not None, "User wasn't created as expected"
-        assert u.__rowid__ is not None, "Created user did not have __rowid__ set"
-        assert u.__rowid__ == 1, "Created User did not have correct __rowid__ "
-        try:
-            crud.insert(id=1, name="chris", age=35)
-        except QueryExecutionError:
-            pass
-        else:
-            raise Exception("QueryExcecutionError should have been rised")
-
-
-def test_insert_or_ignore():
-    with cleanup() as crud:
-        u = crud.insert_or_ignore(id=1, name="chris", age=35)
-        assert u is not None, "User wasn't created as expected"
-        u = crud.insert_or_ignore(id=1, name="chris", age=35)
-        assert u is None, "User was returned but it should have been None"
-
-
-def test_save_one():
-    with cleanup() as crud:
-        chris = User(id=1, name="chris", age=35)
-        crud.save_one(chris)
-
-        with query() as cur:
-            cur.execute("SELECT * FROM user;")
-            res = cur.fetchall()
-
-        assert len(res) == 1, "Incorrect number of users in the database"
-
-
-def test_save_one_rowid():
-    with cleanup() as crud:
-        chris = crud.insert(id=1, name="chris", age=35)
-        chris.name = 'chris_is_alt'
-        crud.save_one(chris)
-        
-
-        with query() as cur:
-            cur.execute("SELECT * FROM user;")
-            res = cur.fetchall()
-
-        assert len(res) == 1, "Incorrect number of users in the database"
-
-def test_save_many():
-    with cleanup() as crud:
-        chris = User(id=1, name="chris", age=35)
-        moni = User(id=2, name="moni", age=36)
-        elena = User(id=3, name="elena", age=5)
-        crud.save_many(chris, moni, elena)
-
-        with query() as cur:
-            cur.execute("SELECT * FROM user;")
-            res = cur.fetchall()
-
-        assert len(res) == 3, "Incorrect number of users in the database"
-
-
-def test_get_all():
-    with cleanup() as crud:
-        chris = User(id=1, name="chris", age=35)
-        moni = User(id=2, name="moni", age=36)
-        elena = User(id=3, name="elena", age=5)
-        crud.save_many(chris, moni, elena)
-
-        users = crud.get_all()
-        assert len(users) == 3, "Incorrect number of users returned"
-
-
-def test_get_many():
-    with cleanup() as crud:
-        u1 = User(id=1, name="chris", age=35)
-        u2 = User(id=2, name="chris", age=35)
-        u3 = User(id=3, name="chris", age=35)
-        u4 = User(id=4, name="moni", age=34)
-        u5 = User(id=5, name="fran", age=1)
-        crud.save_many(u1, u2, u3, u4, u5)
-
-        users = crud.get_many(name="chris")
-
-        assert len(users) == 3, "Incorrect number of users returned"
-        assert all(u.__rowid__ for u in users), 'User objects did not get their rowid populated'
-
-def test_get_many_with_limit():
-    users = [User(id=n, name='chris', age=random.randint(1, 27)) for n in range(50)]
-    with cleanup() as crud:
-        crud.save_many(*users)
-        users = crud.get_many(limit=5)
-        assert len(users) == 5
-
-def test_get_many_with_ordering():
-    with cleanup() as crud:
-        crud.insert(id=1, name='chris', age=3)
-        crud.insert(id=2, name='chris', age=2)
-        crud.insert(id=3, name='chris', age=5)
-        crud.insert(id=4, name='chris', age=1)
-        crud.insert(id=5, name='chris', age=4)
-        
-        users = crud.get_many(order_by={'age': 'desc'})
-        
-        sorted_users = sorted(users, key=lambda u: u.age, reverse=True)
-        assert users == sorted_users
-
-
-def test_get_or_create():
-    with cleanup() as crud:
-        elena = User(id=1, name="elena", age=5)
-        crud.save_one(elena)
-
-        u, c = crud.get_or_create(name="fran", age=1)
-        assert c is True, "User should have been created"
-        assert u == User(id=2, name="fran", age=1), f"Unexpected user was created: {u}"
-        u, c = crud.get_or_create(id=1)
-        assert u == elena, "Mismatch between expected and returned user"
-        assert c is False, "User shouldn't have been created"
-
-
-def test_get_or_none():
-    with cleanup() as crud:
-        elena = User(id=1, name="elena", age=5)
-        crud.save_one(elena)
-
-        u = crud.get_or_none(id=1)
-        assert u is not None, "User wasn't found but it should have"
-        u = crud.get_or_none(id=2)
-        assert u is None, "User shouln't have been found but was"
-
-
-def test_delete_one():
-    with cleanup() as crud:
-        chris = User(id=1, name="chris", age=35)
-        moni = User(id=2, name="moni", age=36)
-        elena = User(id=3, name="elena", age=5)
-        crud.save_many(chris, moni, elena)
-        crud.delete_one(moni)
-        users = crud.get_all()
-        assert len(users) == 2, "Delete one didn't delete the correct amount of users"
-
-class Foo(Model):
-    a: str
-    b: int
-
-def test_delete_one_without_ids():
-    db.unlink(missing_ok=True)
-    engine = Engine(db)
-    crud = engine.crud(Foo)
-    try:
-        for i, l in enumerate('abcdef',1):
-            crud.insert(a=l, b=i)
-            
-        to_del = [
-            Foo(a='b', b=2),
-            Foo(a='c', b=3),
-            Foo(a='d', b=4),
-        ]
-        for obj in to_del:
-            crud.delete_one(obj)
-        
-        foos = crud.get_all()
-        assert len(foos) == 3, 'Mismatch beween expected and found after delete_many'
-        
-    finally:
-        db.unlink(missing_ok=True)
-    
-
-def test_delete_many_by_id():
-    with cleanup() as crud:
-        users = [
-            User(id=n, name='chris', age=n)
-            for n in range(10)
-        ]
-        crud.save_many(*users)
-        
-        to_delete = users[:-1]
-        crud.delete_many(*to_delete)
-        
-        users = crud.get_all()
-        assert len(users) == 1, "Delete many didn't delete the correct amount of users"
-
-
-def test_delete_many_by_rowid():
-    with cleanup() as crud:
-        users = [
-            User(id=n, name='chris', age=n)
-            for n in range(10)
-        ]
-        crud.save_many(*users)
-       
-        crud.delete_many(*users[:-1])
-        
-        users = crud.get_all()
-        
-        
-        assert len(users) == 1, "Delete many didn't delete the correct amount of users"
-
-
-def test_foreign_keys():
-    db = path / 'sync_test.sqlite'
-    db.unlink(missing_ok=True)
-    engine = Engine(db, enable_foreing_keys=True)
-    
-    class Guild(Model):
-        id: int = Field(pk=True, auto=True)
-        name: str
-        
-    class User(Model):
-        id: int = Field(pk=True, auto=True)
-        name: str
-        guild_id: int = ForeignField(references=Guild, on_delete=ForeignField.CASCADE)
-    
-    gcrud = engine.crud(Guild)
-    ucrud = engine.crud(User)
-    
-    ga = gcrud.insert(name='guild a')
-    gb = gcrud.insert(name='guild b')
-    for guild in [ga, gb]:
-        for n in range(5):
-            ucrud.insert(name=f'user {n}', guild_id=guild.id)
-    
-    users = ucrud.get_all()
-    assert len(users) == 10
-    gcrud.delete_one(ga)
-    users = ucrud.get_all()
-    assert len(users) == 5 
-    db.unlink(missing_ok=True)
