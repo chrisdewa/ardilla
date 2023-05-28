@@ -30,6 +30,7 @@ class AsyncEngine(BaseEngine):
     async def close(self) -> None:
         if self.check_connection():
             await self.con.close()
+        self._cruds.clear()
 
     async def __aenter__(self) -> AsyncEngine:
         """Stablishes the connection and if specified enables foreign keys pragma
@@ -60,5 +61,6 @@ class AsyncEngine(BaseEngine):
             await self.con.execute(Model.__schema__)
             await self.con.commit()
             self.tables_created.add(Model.__schema__)
-            
-        return AsyncCrud(Model, self.con)
+        
+        crud = self._cruds.setdefault(Model, AsyncCrud(Model, self.con))
+        return crud

@@ -3,6 +3,7 @@ from pathlib import Path
 from datetime import datetime
 
 from ardilla import Model, Field
+from ardilla.errors import ModelIntegrityError
 
 from pydantic import Json
 
@@ -79,9 +80,16 @@ CREATE TABLE IF NOT EXISTS user(
 """
 
 def test_default_schema():
-
     assert User.__schema__.strip() == schema.strip()
 
 
 def test_pk():
     assert User.__pk__ == "id"
+
+def test_double_pks():
+    try:
+        class Book(Model):
+            id: int = Field(pk=True)
+            name: str = Field(pk=True)
+    except Exception as e:
+        assert isinstance(e, ModelIntegrityError)

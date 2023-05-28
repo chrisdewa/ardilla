@@ -40,15 +40,15 @@ class Model(BaseModel):
     # define your own schema to support them
 
     def __init_subclass__(cls, **kws) -> None:
-        pk = None
+
         for field in cls.__fields__.values():
             if field.type_ not in FIELD_MAPPING:
                 raise ModelIntegrityError(
                     f'Field "{field.name}" of model "{cls.__name__}" is of unsupported type "{field.type_}"'
                 )
-            if (field.field_info.extra.get('primary') 
-                or field.field_info.extra.get('primary_key')):
-                if getattr(cls, '__pk__', None) is not None:
+
+            if field.field_info.extra.keys() & {'primary', 'primary_key', 'pk'}:
+                if getattr(cls, '__pk__', None) not in {None, field.name}:
                     raise ModelIntegrityError('More than one fields defined as primary')
                 
                 cls.__pk__ = field.name 

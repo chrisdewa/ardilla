@@ -14,6 +14,12 @@ from .. import queries
 
 
 class ConnectionProxy:
+    """A proxy class for aiosqlite.Connection that
+    checks if the connections is alive before returning any of its attributes
+    
+    Args:
+        connection (aiosqlite.Connection)
+    """
     def __init__(self, connection: aiosqlite.Connection):
         self._connection = connection
     

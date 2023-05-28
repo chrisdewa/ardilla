@@ -41,6 +41,7 @@ class Engine(BaseEngine):
     def close(self) -> None:
         if self.check_connection():
             self.con.close()
+        self._cruds.clear()
     
     def crud(self, Model: type[M]) -> Crud[M]:
         """returns a Crud instances for the given model type
@@ -53,11 +54,13 @@ class Engine(BaseEngine):
         """
         if not self.check_connection():
             raise DisconnectedEngine("Can't create crud objects with a disconnected engine")
-            
+        
         if Model.__schema__ not in self.tables_created:
             self.con.execute(Model.__schema__)
             self.con.commit()
             self.tables_created.add(Model.__schema__)
-            
-        return Crud(Model, self.con)
+        
+        crud = self._cruds.setdefault(Model, Crud(Model, self.con))
+        
+        return crud
 

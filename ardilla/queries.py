@@ -54,9 +54,9 @@ def for_get_many(
 
     if order_by is not None:
         ord = validate_ordering(columns, order_by)
-        order_by = f" ORDER BY " + ", ".join(f"{k} {v}" for k, v in ord.items())
+        order_by_q = f" ORDER BY " + ", ".join(f"{k} {v}" for k, v in ord.items())
     else:
-        order_by = ""
+        order_by_q = ""
 
     if limit is not None:
         if not isinstance(limit, int) or limit < 1:
@@ -66,7 +66,7 @@ def for_get_many(
     else:
         limit_q = ""
 
-    q = f"SELECT rowid, * FROM {tablename}{filter_}{order_by}{limit_q};"
+    q = f"SELECT rowid, * FROM {tablename}{filter_}{order_by_q}{limit_q};"
     return q, vals
 
 

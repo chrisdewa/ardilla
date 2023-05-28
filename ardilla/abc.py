@@ -21,6 +21,7 @@ class BaseEngine(ABC):
         "tables_created",  # a list of tables that were setup
         "enable_foreing_keys",  # a bool to specify if the pragma should be enforced
         "con", # sync connection
+        "_cruds", # crud cache
     )
     
     def check_connection(self) -> bool:
@@ -50,6 +51,7 @@ class BaseEngine(ABC):
         self.path = path
         self.schemas: set[str] = set()
         self.tables_created: set[str] = set()
+        self._cruds: dict[type[M], CrudType] = {}
         self.enable_foreing_keys = enable_foreing_keys
         
     @abstractmethod
