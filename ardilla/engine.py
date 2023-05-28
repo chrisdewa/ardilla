@@ -12,7 +12,6 @@ class Engine(BaseEngine):
     Args:
         path (str): a pathlike object that points to the sqlite database
         enable_foreing_keys (bool, optional): specifies if the pragma should be enforced. Defaults to False.
-        single_connection (bool, optional): specifies if the engine should maintain a single connectio. Defaults to False.
     
     Attributes:
         path (str): the path to the db
