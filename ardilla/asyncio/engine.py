@@ -23,7 +23,7 @@ class AsyncEngine(BaseEngine):
         con = await aiosqlite.connect(self.path)
         con.row_factory = aiosqlite.Row
         if self.enable_foreing_keys:
-            await self.con.execute('PRAGMA foreign_keys = ON;')
+            await con.execute('PRAGMA foreign_keys = ON;')
         self.con = con
         return con
 

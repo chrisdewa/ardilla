@@ -175,10 +175,9 @@ class AsyncCrud(BaseCrud, Generic[M]):
         q, vals = queries.for_get_many(
             self.Model, order_by=order_by, limit=limit, kws=kws
         )
-        async with self.engine as con:
-            async with con.execute(q, vals) as cur:
-                rows: list[Row] = await cur.fetchall()
-                return [self._row2obj(row) for row in rows]
+        async with self.connection.execute(q, vals) as cur:
+            rows: list[Row] = await cur.fetchall()
+            return [self._row2obj(row) for row in rows]
 
     async def save_one(self, obj: M) -> Literal[True]:
         """Saves one object to the database
@@ -191,9 +190,8 @@ class AsyncCrud(BaseCrud, Generic[M]):
         """
         q, vals = queries.for_save_one(obj)
 
-        async with self.engine as con:
-            await con.execute(q, vals)
-            await con.commit()
+        await self.connection.execute(q, vals)
+        await self.connection.commit()
         return True
 
     async def save_many(self, *objs: M) -> Literal[True]:
@@ -207,9 +205,8 @@ class AsyncCrud(BaseCrud, Generic[M]):
         """
         q, vals = queries.for_save_many(objs)
 
-        async with self.engine as con:
-            await con.executemany(q, vals)
-            await con.commit()
+        await self.connection.executemany(q, vals)
+        await self.connection.commit()
 
         return True
 
@@ -230,9 +227,8 @@ class AsyncCrud(BaseCrud, Generic[M]):
         """
         q, vals = queries.for_delete_one(obj)
 
-        async with self.engine as con:
-            await con.execute(q, vals)
-            await con.commit()
+        await self.connection.execute(q, vals)
+        await self.connection.commit()
         return True
 
     async def delete_many(self, *objs: M) -> Literal[True]:
@@ -248,6 +244,5 @@ class AsyncCrud(BaseCrud, Generic[M]):
         """
         q, vals = queries.for_delete_many(objs)
 
-        async with self.engine as con:
-            await con.execute(q, vals)
-            await con.commit()
+        await self.connection.execute(q, vals)
+        await self.connection.commit()
