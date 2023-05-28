@@ -1,34 +1,50 @@
 from __future__ import annotations
-from functools import wraps
 import sqlite3
 from sqlite3 import Row
-from typing import Literal, Generic, Optional, Union
+from contextlib import contextmanager
+from typing import Literal, Generic, Optional, Union, Generator
 
-from .abc import CrudABC, AbstractEngine
-from .models import M
-from .errors import QueryExecutionError
-from .logging import log
-from .schemas import SQLFieldType
 from . import queries
+from .abc import BaseCrud
+from .models import M
+from .errors import QueryExecutionError, disconnected_engine_error, DisconnectedEngine
+from .schemas import SQLFieldType
 
 
-def verify_kws(f):
+@contextmanager
+def contextcursor(con: sqlite3.Connection) -> Generator[sqlite3.Cursor, None, None]:
+    """a context manager wrapper for sqlite3.Cursor
+
+    Args:
+        con (sqlite3.Connection): the connection
+
+    Raises:
+        disconnected_engine_error: if the connection is non functioning
+
+    Yields:
+        Generator[sqlite3.Cursor, None, None]: the cursor
     """
-    Decorator for sync Crud methods to prevent
-    injection in the keys of the CRUD methods
-    """
-    @wraps(f)
-    def wrapper(self: Crud, *ags, **kws):
-        for key in kws:
-            if key not in self.Model.__fields__:
-                raise KeyError(f'"{key}" is not a field of the "{self.Model.__name__}" and cannot be used in queries')
-        return f(self, *ags, **kws)
-    return wrapper
+    cur = None
+    try:
+        cur = con.cursor()
+        yield cur
+    except Exception as e:
+        if (
+            isinstance(e, sqlite3.ProgrammingError)
+            and str(e) == "Cannot operate on a closed database."
+        ):
+            raise DisconnectedEngine(str(e))
+        else:
+            raise e
+    finally:
+        if cur is not None:
+            cur.close()
 
-class Crud(CrudABC, Generic[M]):
+
+class Crud(BaseCrud, Generic[M]):
     """Abstracts CRUD actions for model associated tables"""
 
-    engine: AbstractEngine
+    connection: sqlite3.Connection
 
     def _do_insert(
         self,
@@ -52,68 +68,64 @@ class Crud(CrudABC, Generic[M]):
         """
         q, vals = queries.for_do_insert(self.tablename, ignore, returning, kws)
 
-        with self.engine as con:
-            with self.engine.cursor(con) as cur:
-                try:
-                    cur.execute(q, vals)
-                except sqlite3.IntegrityError as e:
-                    raise QueryExecutionError(str(e))
+        with contextcursor(self.connection) as cur:
+            try:
+                cur.execute(q, vals)
+            except sqlite3.IntegrityError as e:
+                raise QueryExecutionError(str(e))
 
-                row = cur.fetchone()
-                con.commit()
-                if returning and row:
-                    return self._row2obj(row, cur.lastrowid)
+            row = cur.fetchone()
+            self.connection.commit()
+            if returning and row:
+                return self._row2obj(row, cur.lastrowid)
 
         return None
 
-    @verify_kws
     def get_or_none(self, **kws: SQLFieldType) -> Optional[M]:
         """Returns a row as an instance of the model if one is found or none
 
         Args:
-            kws (SQLFieldType): The keyword arguments are passed as column names and values to 
+            kws (SQLFieldType): The keyword arguments are passed as column names and values to
                 a select query
-            
-        Example: 
+
+        Example:
             ```py
             crud.get_or_none(id=42)
-            
-            # returns an object with id of 42 or None if there isn't one in the database 
+
+            # returns an object with id of 42 or None if there isn't one in the database
             ```
-        
+
         Returns:
             The object found with the criteria if any
         """
+        self.verify_kws(kws)
         q, vals = queries.for_get_or_none(self.tablename, kws)
-        with self.engine as con:
-            ctxcur = self.engine.cursor(con)
-            with ctxcur as cur:
-                cur.execute(q, vals)
-                row: Union[Row, None] = cur.fetchone()
-                if row:
-                    return self._row2obj(row)
+        with contextcursor(self.connection) as cur:
+            cur.execute(q, vals)
+            row: Union[Row, None] = cur.fetchone()
+            if row:
+                return self._row2obj(row)
         return None
 
-    @verify_kws
     def insert(self, **kws: SQLFieldType) -> M:
         """Inserts a record into the database.
-        
+
         Args:
             kws (SQLFieldType): The keyword arguments are passed as the column names and values
                 to the insert query
-        
+
         Returns:
             Creates a new entry in the database and returns the object
-            
+
         Rises:
             `ardilla.error.QueryExecutionError`: if there's a conflict when inserting the record
         """
+        self.verify_kws(kws)
         return self._do_insert(False, True, **kws)
 
-    @verify_kws
     def insert_or_ignore(self, **kws: SQLFieldType) -> Optional[M]:
         """Inserts a record to the database with the keywords passed. It ignores conflicts.
-        
+
         Args:
             kws (SQLFieldType): The keyword arguments are passed as the column names and values
                 to the insert query
@@ -121,19 +133,19 @@ class Crud(CrudABC, Generic[M]):
         Returns:
             The newly created row as an instance of the model if there was no conflicts
         """
+        self.verify_kws(kws)
         return self._do_insert(True, True, **kws)
 
-
-    @verify_kws
     def get_or_create(self, **kws: SQLFieldType) -> tuple[M, bool]:
         """Returns an object from the database with the spefied matching data
         Args:
             kws (SQLFieldType): the key value pairs will be used to query for an existing row
                 if no record is found then a new row will be inserted
         Returns:
-            A tuple with two values, the object and a boolean indicating if the 
+            A tuple with two values, the object and a boolean indicating if the
                 object was newly created or not
         """
+        self.verify_kws(kws)
         created = False
         result = self.get_or_none(**kws)
         if not result:
@@ -160,23 +172,21 @@ class Crud(CrudABC, Generic[M]):
             order_by (Optional[dict[str, str]], optional): An ordering dict. Defaults to None.
                 The ordering should have the structure: `{'column_name': 'ASC' OR 'DESC'}`
                 Case in values is insensitive
-            
+
             limit (Optional[int], optional): The number of items to return. Defaults to None.
             kws (SQLFieldType): The column names and values for the select query
 
         Returns:
             a list of rows matching the criteria as intences of the model
         """
-        for key in kws:
-            if key not in self.Model.__fields__:
-                raise KeyError(f'"{key}" is not a field of the "{self.Model.__name__}" and cannot be used in queries')
-        q, vals = queries.for_get_many(self.Model, order_by=order_by, limit=limit, kws=kws)
-        with self.engine as con:
-            ctxcur = self.engine.cursor(con)
-            with ctxcur as cur:
-                cur.execute(q, vals)
-                rows: list[Row] = cur.fetchall()
-                return [self._row2obj(row) for row in rows]
+        self.verify_kws(kws)
+        q, vals = queries.for_get_many(
+            self.Model, order_by=order_by, limit=limit, kws=kws
+        )
+        with contextcursor(self.connection) as cur:
+            cur.execute(q, vals)
+            rows: list[Row] = cur.fetchall()
+            return [self._row2obj(row) for row in rows]
 
     def save_one(self, obj: M) -> Literal[True]:
         """Saves one object to the database
@@ -188,10 +198,11 @@ class Crud(CrudABC, Generic[M]):
             The literal `True` if the method ran successfuly
         """
         q, vals = queries.for_save_one(obj)
-
-        with self.engine as con:
-            con.execute(q, vals)
-            con.commit()
+        try:
+            self.connection.execute(q, vals)
+            self.connection.commit()
+        except:
+            raise disconnected_engine_error
         return True
 
     def save_many(self, *objs: tuple[M]) -> Literal[True]:
@@ -202,11 +213,13 @@ class Crud(CrudABC, Generic[M]):
 
         Returns:
             The literal `True` if the method ran successfuly
-        """        
+        """
         q, vals = queries.for_save_many(objs)
-        with self.engine as con:
-            con.executemany(q, vals)
-            con.commit()
+        try:
+            self.connection.executemany(q, vals)
+            self.connection.commit()
+        except:
+            raise disconnected_engine_error
 
         return True
 
@@ -223,14 +236,15 @@ class Crud(CrudABC, Generic[M]):
 
         Returns:
             The literal `True` if the method ran successfuly
-            
-        """
-        
-        q, vals = queries.for_delete_one(obj)
-        with self.engine as con:
-            con.execute(q, vals)
-            con.commit()
 
+        """
+
+        q, vals = queries.for_delete_one(obj)
+        try:
+            self.connection.execute(q, vals)
+            self.connection.commit()
+        except:
+            raise disconnected_engine_error
         return True
 
     def delete_many(self, *objs: M) -> Literal[True]:
@@ -242,11 +256,12 @@ class Crud(CrudABC, Generic[M]):
 
         Returns:
             The literal `True` if the method ran successfuly
-            
+
         """
         q, vals = queries.for_delete_many(objs)
-        with self.engine as con:
-            con.execute(q, vals)
-            con.commit()
-
+        try:
+            self.connection.execute(q, vals)
+            self.connection.commit()
+        except:
+            raise disconnected_engine_error
         return True

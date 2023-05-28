@@ -1,20 +1,17 @@
 from __future__ import annotations
+
 import aiosqlite
 
-from .crud import AsyncCrud
+from ..abc import BaseEngine
 from ..models import M
-from ..engine import Engine
+from ..errors import DisconnectedEngine
 
-from .abc import AbstractAsyncEngine
+from .crud import AsyncCrud
 
-class AsyncEngine(Engine, AbstractAsyncEngine):
+class AsyncEngine(BaseEngine):
     """Async Engine that uses `aiosqlite.Connection` and `aiosqlite.Cursor`
-    Inhetits attributes from `Engine`
     """
-    def __init__(self, path: str, enable_foreing_keys: bool = False, single_connection: bool = False):
-        if single_connection is True:
-            raise NotImplementedError('The async engine does not support single connection for now')
-        super().__init__(path, enable_foreing_keys, single_connection)
+    con: aiosqlite.Connection
     
     async def connect(self) -> aiosqlite.Connection:
         """
@@ -22,47 +19,46 @@ class AsyncEngine(Engine, AbstractAsyncEngine):
         Returns:
             The connection
         """
+        await self.close()
         con = await aiosqlite.connect(self.path)
         con.row_factory = aiosqlite.Row
+        if self.enable_foreing_keys:
+            await con.execute('PRAGMA foreign_keys = ON;')
+        self.con = con
         return con
 
-    async def __aenter__(self) -> aiosqlite.Connection:
+    async def close(self) -> None:
+        if self.check_connection():
+            await self.con.close()
+
+    async def __aenter__(self) -> AsyncEngine:
         """Stablishes the connection and if specified enables foreign keys pragma
 
         Returns:
             The connection
         """
-        self.acon = await self.connect()
-        if self.enable_foreing_keys:
-            await self.acon.execute('PRAGMA foreign_keys = ON;')
-            
-        return self.acon
+        await self.connect()
+        return self
 
     async def __aexit__(self, *_):
         """Closes the connection"""
-        await self.acon.close()
-
-    async def setup(self):
-        """Creates the tables setup by the engine
-        """
-        async with self as con:
-            for table in self.schemas:
-                await con.execute(table)
-                self.tables_created.add(table)
-            await con.commit()
+        await self.close()
     
-    def crud(self, Model: type[M]) -> AsyncCrud[M]:
+    async def crud(self, Model: type[M]) -> AsyncCrud[M]:
         """
-        This function runs synchronously and works exactly like `Engine.crud` but
+        This function works exactly like `Engine.crud` but
         returns an instance of `ardilla.asyncio.crud.AsyncCrud` instead of `ardilla.crud.Crud`
+        and is asynchronous
         
         Returns:
             The async Crud for the given model
         """
-        crud = self._cruds.setdefault(Model, AsyncCrud(Model, self))
+        if not self.check_connection():
+            raise DisconnectedEngine("Can't create crud objects with a disconnected engine")
+            
         if Model.__schema__ not in self.tables_created:
-            with self as con:
-                con.execute(Model.__schema__)
-                con.commit()
+            await self.con.execute(Model.__schema__)
+            await self.con.commit()
             self.tables_created.add(Model.__schema__)
-        return crud
+            
+        return AsyncCrud(Model, self.con)

@@ -1,75 +1,107 @@
+from __future__ import annotations
 import sqlite3
-from typing import Literal, TypeVar, Protocol, Optional
+from typing import Any, Literal, TypeVar, Optional
 from abc import abstractmethod, ABC
 from sqlite3 import Row
 
-from .errors import MissingEngine
 from .models import M, Model as BaseModel
 
 E = TypeVar("E")  # Engine Type
 
-
-class ContextCursorProtocol(Protocol):
-    def __init__(self, con: sqlite3.Connection):
-        ...
-
-    def __enter__(self) -> sqlite3.Cursor:
-        ...
-
-    def __exit__(self, *_) -> None:
-        ...
+Connection = TypeVar("Connection")
+CrudType = TypeVar('CrudType', bound='BaseCrud')
 
 
-class AbstractEngine(ABC):
+class BaseEngine(ABC):
     """This just provides autocompletition across the library"""
 
-    schemas: set[str]
-
-    @abstractmethod
-    def __enter__(self) -> sqlite3.Connection:
-        ...
-
-    @abstractmethod
-    def __exit__(self, *_) -> None:
-        ...
-
-    @abstractmethod
-    def cursor(self, con: sqlite3.Connection) -> ContextCursorProtocol:
-        ...
-
-
-class CrudABC(ABC):
     __slots__ = (
-        "engine",
+        "path",  # the path to the database
+        "schemas",  # the registered tables
+        "tables_created",  # a list of tables that were setup
+        "enable_foreing_keys",  # a bool to specify if the pragma should be enforced
+        "con", # sync connection
+    )
+    
+    def check_connection(self) -> bool:
+        """Checks if the engine's connection is alive
+        works for both the sync and async classes
+
+        Returns:
+            bool: if the connection is fine
+        """
+        try:
+            if isinstance(self.con, sqlite3.Connection):
+                self.con.cursor()
+                return True
+            else:
+                # should be aiosqlite
+                # we don't import it here to prevent import errors 
+                # in case there's missing dependency of aiosqlite
+                return self.con._running and self.con._connection                
+        except:
+            return False
+
+    def __init__(
+        self,
+        path: str,
+        enable_foreing_keys: bool = False,
+    ):
+        self.path = path
+        self.schemas: set[str] = set()
+        self.tables_created: set[str] = set()
+        self.enable_foreing_keys = enable_foreing_keys
+        
+    @abstractmethod
+    def connect(self) -> Connection:
+        ...
+        
+    @abstractmethod
+    def close(self) -> None:
+        ...
+
+    @abstractmethod
+    def crud(self, Model: type[M]) -> CrudType:
+        ...
+
+
+class BaseCrud(ABC):
+    __slots__ = (
+        "connection",
         "tablename",
         "Model",
         "columns",
     )
 
-    engine: AbstractEngine
-
-    def __init__(self, Model: type[M], engine: Optional[AbstractEngine] = None) -> None:
-        if engine:
-            self.engine = engine
-
+    def __init__(self, Model: type[M], connection: Connection) -> None:
         self.Model = Model
-        if Model.__schema__:
-            self.engine.schemas.add(Model.__schema__)
+        self.connection = connection
+
         self.tablename = Model.__tablename__
         self.columns = tuple(Model.__fields__)
 
-    def __new__(cls, Model: type[M], engine: Optional[AbstractEngine] = None):
+    def __new__(cls, Model: type[M], connection: Connection):
         if not issubclass(Model, BaseModel):
             raise TypeError("Model param has to be a subclass of model")
 
-        cls_engine = getattr(cls, "engine", None)
-
-        if engine is None and cls_engine is None:
-            raise MissingEngine(
-                "Missing engine. Set the engine at instance level (Crud(Model, engine))"
-                "or at class level (Crud.engine = engine)"
-            )
         return super().__new__(cls)
+
+    def verify_kws(self, kws: dict[str, Any]) -> Literal[True]:
+        """Verifies that the passed kws keys in dictionary
+        are all contained within the model's fields
+
+        Args:
+            kws (dict[str, Any]): the keyword arguments for queries
+
+        Returns:
+            Literal[True]: If the kws are verified
+        """
+        for key in kws:
+            if key not in self.Model.__fields__:
+                raise KeyError(
+                    f'"{key}" is not a field of the "{self.Model.__name__}" and cannot be used in queries'
+                )
+        return True
 
     def _row2obj(self, row: Row, rowid: Optional[int] = None) -> BaseModel:
         """
@@ -79,7 +111,7 @@ class CrudABC(ABC):
                 If passed it means it comes from an insert function
 
         """
-        [*keys] = self.Model.__fields__
+        keys = list(self.Model.__fields__)
         if rowid is None:
             rowid, *vals = row
         else:
@@ -93,47 +125,52 @@ class CrudABC(ABC):
     # Create
     @abstractmethod
     def _do_insert(self, ignore: bool = False, returning: bool = True, /, **kws):
-        pass
+        ...
 
     @abstractmethod
     def insert(self, **kws):
-        pass
+        ...
 
     @abstractmethod
     def insert_or_ignore(self):
-        pass
+        ...
 
     # Read
     @abstractmethod
     def get_all(self) -> list[M]:
-        pass
+        ...
 
     @abstractmethod
-    def get_many(self, order_by: Optional[dict[str, str]] = None, limit: Optional[int] = None, **kws) -> list[M]:
-        pass
+    def get_many(
+        self,
+        order_by: Optional[dict[str, str]] = None,
+        limit: Optional[int] = None,
+        **kws,
+    ) -> list[M]:
+        ...
 
     @abstractmethod
     def get_or_create(self, **kws) -> tuple[M, bool]:
-        pass
+        ...
 
     @abstractmethod
     def get_or_none(self, **kws) -> Optional[M]:
-        pass
+        ...
 
     # Update
     @abstractmethod
     def save_one(self, obj: M) -> Literal[True]:
-        pass
+        ...
 
     @abstractmethod
     def save_many(self, *objs: M) -> Literal[True]:
-        pass
+        ...
 
     # Delete
     @abstractmethod
     def delete_one(self, obj: M) -> Literal[True]:
-        pass
+        ...
 
     @abstractmethod
     def delete_many(self, *objs: M) -> Literal[True]:
-        pass
+        ...

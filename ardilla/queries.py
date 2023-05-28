@@ -191,7 +191,7 @@ def for_delete_many(objs: tuple[M]) -> tuple[str, tuple[Any, ...]]:
         raise IndexError('param "objs" is empty, pass at least one object')
 
     tablename = objs[0].__tablename__
-    placeholders = ", ".join("?" for _ in objs)
+    placeholders = ", ".join("?" * len(objs))
     if all(obj.__rowid__ for obj in objs):
         vals = tuple(obj.__rowid__ for obj in objs)
         q = f"DELETE FROM {tablename} WHERE rowid IN ({placeholders})"

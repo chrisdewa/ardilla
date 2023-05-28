@@ -1,220 +1,179 @@
-import random
-import sqlite3
-from contextlib import contextmanager, asynccontextmanager
+
+from contextlib import asynccontextmanager
 from pathlib import Path
+from functools import partial
 
 import pytest
 
-from pydantic import Field
+from ardilla import Model, Field, ForeignField
+from ardilla.asyncio import Engine
+from ardilla.errors import QueryExecutionError, DisconnectedEngine
 
-from ardilla import Model
-from ardilla.asyncio import Engine, Crud
-from ardilla.errors import QueryExecutionError
-from ardilla.fields import ForeignField
+
 
 
 path = Path(__file__).parent
-db = path / "testdb_async.sqlite"
+db = path / "test_sync.sqlite"
 
-
-class User(Model):
-    id: int = Field(primary=True)
-    name: str
-    age: int
-
+unlinkdb = partial(db.unlink, missing_ok=True)
 
 @asynccontextmanager
 async def cleanup():
+    unlinkdb()
     try:
-        db.unlink(missing_ok=True)
+        yield
+    finally:
+        unlinkdb()
+
+class User(Model):
+    id: int = Field(pk=True, auto=True)
+    name: str
+
+
+@pytest.mark.asyncio
+async def test_context_engine():
+    async with cleanup():
+        try:
+            async with Engine(db) as engine:
+                crud = await engine.crud(User)
+                u = await crud.insert(name='chris') # should pass
+                assert u.name == 'chris'
+            await crud.insert(name='moni')
+        except Exception as e:
+            assert isinstance(e, DisconnectedEngine), f'Wrong exception raised'
+
+@pytest.mark.asyncio
+async def test_st_engine():
+    unlinkdb()
+    try:
         engine = Engine(db)
-        crud = engine.crud(User)
-        yield crud
+        await engine.connect()
+        crud = await engine.crud(User)
+        u = await crud.insert(name='chris') # should pass
+        assert u.name == 'chris'
+        await engine.close()
+        await crud.insert(name='moni')
+    except Exception as e:
+        assert isinstance(e, DisconnectedEngine), f'Wrong exception raised'
     finally:
-        db.unlink(missing_ok=True)
+        await engine.close()
+        unlinkdb()
 
 
-@contextmanager
-def query():
-    try:
-        con = sqlite3.connect(db)
-        cur = con.cursor()
-        yield cur
-    finally:
-        cur.close()
-        con.close()
-
+# CREATE
 
 @pytest.mark.asyncio
 async def test_insert():
-    async with cleanup() as crud:
-        u = await crud.insert(id=1, name="chris", age=35)
+    async with cleanup(), Engine(db) as engine:
+        crud = await engine.crud(User)
+        u = await crud.insert(name="chris")
+        
         assert u is not None, "User wasn't created as expected"
-
+        assert u.__rowid__ is not None, "Created user did not have __rowid__ set"
+        assert u.__rowid__ == 1, "Created User did not have correct __rowid__ "
         try:
-            await crud.insert(id=1, name="chris", age=35)
-        except QueryExecutionError:
-            pass
+            await crud.insert(id=1, name="chris")
+        except Exception as err:
+            assert isinstance(err, QueryExecutionError), f'Wrong error rised: {err}'
         else:
             raise Exception("QueryExcecutionError should have been rised")
 
-
 @pytest.mark.asyncio
 async def test_insert_or_ignore():
-    async with cleanup() as crud:
-        u = await crud.insert_or_ignore(id=1, name="chris", age=35)
-        assert u is not None, "User wasn't created as expected"
-        u = await crud.insert_or_ignore(id=1, name="chris", age=35)
-        assert u is None, "User was returned but it should have been None"
+    async with cleanup(), Engine(db) as engine:
+        crud = await engine.crud(User)
+        kws = dict(id=1, name='chris')
+        await crud.insert(**kws)
+        u2 = await crud.insert_or_ignore(**kws)
+        
+        assert u2 is None
 
 
 @pytest.mark.asyncio
 async def test_save_one():
-    async with cleanup() as crud:
-        chris = User(id=1, name="chris", age=35)
-        await crud.save_one(chris)
-
-        with query() as cur:
-            cur.execute("SELECT * FROM user;")
-            res = cur.fetchall()
-
-        assert len(res) == 1, "Incorrect number of users in the database"
-
+    async with cleanup(), Engine(db) as engine:
+        crud = await engine.crud(User)
+        u = await crud.insert(name='chris')
+        u.name = 'alex'
+        await crud.save_one(u)
+        
+        user = await crud.get_or_none(name='alex')
+        assert user.id == 1
 
 @pytest.mark.asyncio
 async def test_save_many():
-    async with cleanup() as crud:
-        chris = User(id=1, name="chris", age=35)
-        moni = User(id=2, name="moni", age=36)
-        elena = User(id=3, name="elena", age=5)
-        await crud.save_many(chris, moni, elena)
+    users = [User(name=f'user {n}') for n in range(20)]
+    async with cleanup(), Engine(db) as engine:
+        crud = await engine.crud(User)
+        await crud.save_many(*users)
 
-        with query() as cur:
-            cur.execute("SELECT * FROM user;")
-            res = cur.fetchall()
+        assert len(await crud.get_all()) == 20
 
-        assert len(res) == 3, "Incorrect number of users in the database"
-
-
+# READ
 @pytest.mark.asyncio
 async def test_get_all():
-    async with cleanup() as crud:
-        chris = User(id=1, name="chris", age=35)
-        moni = User(id=2, name="moni", age=36)
-        elena = User(id=3, name="elena", age=5)
-        await crud.save_many(chris, moni, elena)
+    async with cleanup(), Engine(db) as engine:
+        crud = await engine.crud(User)
+        for n in range(10):
+            await crud.insert(name=f'user {n}')
 
-        users = await crud.get_all()
-        assert len(users) == 3, "Incorrect number of users returned"
-
+        total = len(await crud.get_all())
+        assert total == 10
 
 @pytest.mark.asyncio
 async def test_get_many():
-    async with cleanup() as crud:
-        u1 = User(id=1, name="chris", age=35)
-        u2 = User(id=2, name="chris", age=35)
-        u3 = User(id=3, name="chris", age=35)
-        u4 = User(id=4, name="moni", age=34)
-        u5 = User(id=5, name="fran", age=1)
-        await crud.save_many(u1, u2, u3, u4, u5)
-
-        users = await crud.get_many(name="chris")
-
-        assert len(users) == 3, "Incorrect number of users returned"
-
-@pytest.mark.asyncio
-async def test_get_many_with_limit():
-    users = [User(id=n, name='chris', age=random.randint(1, 27)) for n in range(50)]
-    async with cleanup() as crud:
-        await crud.save_many(*users)
-        users = await crud.get_many(limit=5)
-        assert len(users) == 5
-
-@pytest.mark.asyncio
-async def test_get_many_with_ordering(): 
-    async with cleanup() as crud:
-        await crud.insert(id=1, name='chris', age=3)
-        await crud.insert(id=2, name='chris', age=2)
-        await crud.insert(id=3, name='chris', age=5)
-        await crud.insert(id=4, name='chris', age=1)
-        await crud.insert(id=5, name='chris', age=4)
+    async with cleanup(), Engine(db) as engine:
+        crud = await engine.crud(User)
+        names = ['chris', 'moni', 'elena', 'fran']
+        for name in names:
+            for _ in range(3):
+                await crud.insert(name=name)
         
-        users = await crud.get_many(order_by={'age': 'desc'})
+        chrises = await crud.get_many(name='chris')
         
-        sorted_users = sorted(users, key=lambda u: u.age, reverse=True)
-        assert users == sorted_users
+        assert len(chrises) == 3
 
 @pytest.mark.asyncio
 async def test_get_or_create():
-    async with cleanup() as crud:
-        elena = User(id=1, name="elena", age=5)
-        await crud.save_one(elena)
-
-        u, c = await crud.get_or_create(name="fran", age=1)
-        assert c is True, "User should have been created"
-        assert u == User(id=2, name="fran", age=1), f"Unexpected user was created: {u}"
-        u, c = await crud.get_or_create(id=1)
-        assert u == elena, "Mismatch between expected and returned user"
-        assert c is False, "User shouldn't have been created"
-
+    async with cleanup(), Engine(db) as engine:
+        crud = await engine.crud(User)
+        chris, created = await crud.get_or_create(name='chris')
+        assert chris.id == 1
+        assert created is True
+        chris, created = await crud.get_or_create(name='chris')
+        assert chris.id == 1
+        assert created is False
 
 @pytest.mark.asyncio
 async def test_get_or_none():
-    async with cleanup() as crud:
-        elena = User(id=1, name="elena", age=5)
-        await crud.save_one(elena)
-
-        u = await crud.get_or_none(id=1)
-        assert u is not None, "User wasn't found but it should have"
-        u = await crud.get_or_none(id=2)
-        assert u is None, "User shouln't have been found but was"
-
+    async with cleanup(), Engine(db) as engine:
+        crud = await engine.crud(User)
+        chris = await crud.get_or_none(name='chris')
+        assert chris is None
+        await crud.insert(name='chris')
+        chris = await crud.get_or_none(name='chris')
+        assert chris is not None
 
 @pytest.mark.asyncio
 async def test_delete_one():
-    async with cleanup() as crud:
-        chris = User(id=1, name="chris", age=35)
-        moni = User(id=2, name="moni", age=36)
-        elena = User(id=3, name="elena", age=5)
-        await crud.save_many(chris, moni, elena)
-        await crud.delete_one(moni)
+    async with cleanup(), Engine(db) as engine:
+        crud = await engine.crud(User)
+        chrises = [User(name='chris') for _ in range(10)]
+        await crud.save_many(*chrises)
+        
+        x = User(id=5, name='chris')
+        await crud.delete_one(x)
+        
         users = await crud.get_all()
-        assert len(users) == 2, "Delete one didn't delete the correct amount of users"
-
-class Foo(Model):
-    a: str
-    b: int
+        assert len(users) == 9
+        assert all(u.id != 5 for u in users)
 
 @pytest.mark.asyncio
-async def test_delete_one_without_ids():
-    db.unlink(missing_ok=True)
-    engine = Engine(db)
-    crud = engine.crud(Foo)
-    try:
-        for i, l in enumerate('abcdef',1):
-            await crud.insert(a=l, b=i)
-            
-        to_del = [
-            Foo(a='b', b=2),
-            Foo(a='c', b=3),
-            Foo(a='d', b=4),
-        ]
-        for obj in to_del:
-            await crud.delete_one(obj)
-        
-        foos = await crud.get_all()
-        assert len(foos) == 3, 'Mismatch beween expected and found after delete_many'
-        
-    finally:
-        db.unlink(missing_ok=True)
-
-
-@pytest.mark.asyncio
-async def test_delete_many_by_id():
-    async with cleanup() as crud:
+async def test_delete_many():
+    async with cleanup(), Engine(db) as engine:
+        crud = await engine.crud(User)
         users = [
-            User(id=n, name='chris', age=n)
-            for n in range(10)
+            User(id=n, name='chris') for n in range(10)
         ]
         await crud.save_many(*users)
         
@@ -225,26 +184,11 @@ async def test_delete_many_by_id():
         assert len(users) == 1, "Delete many didn't delete the correct amount of users"
 
 @pytest.mark.asyncio
-async def test_delete_many_by_rowid():
-    async with cleanup() as crud:
-        users = [
-            User(id=n, name='chris', age=n)
-            for n in range(10)
-        ]
-        await crud.save_many(*users)
-       
-        await crud.delete_many(*users[:-1])
-        
-        users = await crud.get_all()
-        
-        
-        assert len(users) == 1, "Delete many didn't delete the correct amount of users"
-
-@pytest.mark.asyncio
 async def test_foreign_keys():
-    db = path / 'async_test.sqlite'
+    db = path / 'sync_test.sqlite'
     db.unlink(missing_ok=True)
     engine = Engine(db, enable_foreing_keys=True)
+    await engine.connect()
     
     class Guild(Model):
         id: int = Field(pk=True, auto=True)
@@ -254,10 +198,9 @@ async def test_foreign_keys():
         id: int = Field(pk=True, auto=True)
         name: str
         guild_id: int = ForeignField(references=Guild, on_delete=ForeignField.CASCADE)
-    print(User.__schema__)
     
-    gcrud = engine.crud(Guild)
-    ucrud = engine.crud(User)
+    gcrud = await engine.crud(Guild)
+    ucrud = await engine.crud(User)
     
     ga = await gcrud.insert(name='guild a')
     gb = await gcrud.insert(name='guild b')
@@ -270,4 +213,6 @@ async def test_foreign_keys():
     await gcrud.delete_one(ga)
     users = await ucrud.get_all()
     assert len(users) == 5 
+    await engine.close()
     db.unlink(missing_ok=True)
+

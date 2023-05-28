@@ -54,28 +54,20 @@ pip install git+https://github.com/chrisdewa/ardilla.git#egg=ardilla[dev]
 from ardilla import Engine, Model, Crud
 from pydantic import Field
 
-engine = Engine('db.sqlite3')
-
 class User(Model):
     id: int = Field(primary=True, autoincrement=True) 
     name: str
     age: int
 
-crud = engine.crud(User)
-
 def main():
-    # get or none
-    user = crud.get_or_none(id=1) # user with id of 1
-    # get or create
-    user2, was_created = crud.get_or_create(id=2, name='chris', age=35)
-    # get many
-    users = crud.get_many(name='chris') # all users named chris
-    # save one
-    user3 = User(id=3, name='moni', age=35)
-    user.age += 1 # it's her birthday
-    crud.save_one(user3)
-    # save many
-    crud.save_many(user, user2, user3)
+    with Engine('db.sqlite') as engine:
+      user = crud.get_or_none(id=1) # user with id of 1
+      user2, was_created = crud.get_or_create(id=2, name='chris', age=35)
+      users = crud.get_many(name='chris') # all users named chris
+      user3 = User(id=3, name='moni', age=35)
+      user.age += 1 # it's her birthday
+      crud.save_one(user3)
+      crud.save_many(user, user2, user3)
 ```
 
 ## Supported CRUD methods:
