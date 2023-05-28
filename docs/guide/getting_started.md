@@ -55,16 +55,26 @@ CREATE TABLE IF NOT EXISTS book(
 ```py
 from ardilla import Engine
 
-engine = Engine('path/to/db_file.sqlite3', enable_foreign_keys=True)
-
+with Engine('path/to/db_file.sqlite3', enable_foreign_keys=True) as engine:
+    author_crud = engine.crud(Author)
+    book_crud = engine.crud(Book)
+    
 ```
 
-## The CRUD object
+The crud objects hold all the logic to interact with a table in the database.
+They share a connection and are only good in the context where they're created.
+Alternatively you can use the regular open/close syntax
 
 ```py
+from ardilla import Engine
+
+engine = Engine('path/to/db_file.sqlite3', enable_foreign_keys=True)
+engine.connect() # always before creating cruds
 
 author_crud = engine.crud(Author)
 book_crud = engine.crud(Book)
+
+engine.close() # always remember to close your connections
 
 ```
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Literal, Generic, Optional, Union
 
+from typing import Any
 import aiosqlite
 from aiosqlite import Row
 
@@ -8,13 +9,29 @@ from ..errors import QueryExecutionError, disconnected_engine_error
 from ..models import M
 from ..abc import BaseCrud
 from ..schemas import SQLFieldType
+from ..errors import DisconnectedEngine
 from .. import queries
+
+
+class ConnectionProxy:
+    def __init__(self, connection: aiosqlite.Connection):
+        self._connection = connection
+    
+    def __getattr__(self, __name: str) -> Any:
+        if self._connection._running and self._connection._connection:
+            return getattr(self._connection, __name)
+        else:
+            raise DisconnectedEngine('The engine is disconnected')
 
 
 class AsyncCrud(BaseCrud, Generic[M]):
     """Abstracts CRUD actions for model associated tables"""
-
     connection: aiosqlite.Connection
+    
+    def __init__(self, Model: type[M], connection: aiosqlite.Connection) -> None:
+        connection = ConnectionProxy(connection)
+        super().__init__(Model, connection)
+
 
     async def _do_insert(
         self,

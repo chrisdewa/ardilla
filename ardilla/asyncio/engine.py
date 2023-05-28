@@ -4,7 +4,7 @@ import aiosqlite
 
 from ..abc import BaseEngine
 from ..models import M
-from ..errors import EngineDisconnected
+from ..errors import DisconnectedEngine
 
 from .crud import AsyncCrud
 
@@ -54,7 +54,7 @@ class AsyncEngine(BaseEngine):
             The async Crud for the given model
         """
         if not self.check_connection():
-            raise EngineDisconnected("Can't create crud objects with a disconnected engine")
+            raise DisconnectedEngine("Can't create crud objects with a disconnected engine")
             
         if Model.__schema__ not in self.tables_created:
             await self.con.execute(Model.__schema__)

@@ -80,10 +80,16 @@ def get_fields_schemas(Model: type[BaseModel]) -> list[str]:
                     raise ModelIntegrityError(f"field {name} is marked as pk, but __pk__ points to another field.")
                 
                 pk = name
+                
                 schema += ' PRIMARY KEY'
 
                 if auto and T in AUTOFIELDS:
                     schema += AUTOFIELDS[T]
+                    # make the field not required
+                    # this allows users to create
+                    # objects from the model without knowing the final 
+                    # value in the database
+                    field.required = False
                 elif auto:
                     raise autoerror
                 break

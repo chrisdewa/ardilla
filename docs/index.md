@@ -29,16 +29,6 @@ It excels in its simplicity and ease of implementation while it may not be suita
 For developers who desire more advanced features, there are other libraries available, such as [tortoise-orm](https://github.com/tortoise/tortoise-orm), [sqlalchemy](https://github.com/sqlalchemy/sqlalchemy), [pony](https://github.com/ponyorm/pony) or [peewee](https://github.com/coleifer/peewee).
 
 
-## install
-
-Install lastest release from PyPi
-```bash
-pip install -U ardilla
-pip install -U ardilla[async]
-```
-- async instaslls aiosqlite
-
-
 ## Supported CRUD methods
 
 - `crud.insert` Inserts a record, rises errors if there's a conflict
@@ -64,3 +54,6 @@ pip install -U ardilla[async]
 ## Licence
 
 [Read Licence](licence.md)
+
+## Next
+[Getting started](guide/getting_started.md)...
