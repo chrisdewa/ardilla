@@ -72,7 +72,12 @@ def get_fields_schemas(Model: type[BaseModel]) -> list[str]:
         
         autoerror = ModelIntegrityError(f'field {name} has a type of "{T}" which does not support "auto"')
         schema = f'{name} {FIELD_MAPPING[T]}'
-        for k in {'pk', 'primary', 'primary_key'}:
+        
+        primary_field_keys = {'pk', 'primary', 'primary_key'}
+        if len(extra.keys() & primary_field_keys) >1:
+            raise ModelIntegrityError(f'Multiple keywords for a primary field in "{name}"')
+        
+        for k in primary_field_keys:
             if k in extra and extra[k]:
                 if pk is not None:
                     raise ModelIntegrityError('Only one primary key per model is allowed')

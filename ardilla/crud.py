@@ -81,32 +81,6 @@ class Crud(BaseCrud, Generic[M]):
 
         return None
 
-    def get_or_none(self, **kws: SQLFieldType) -> Optional[M]:
-        """Returns a row as an instance of the model if one is found or none
-
-        Args:
-            kws (SQLFieldType): The keyword arguments are passed as column names and values to
-                a select query
-
-        Example:
-            ```py
-            crud.get_or_none(id=42)
-
-            # returns an object with id of 42 or None if there isn't one in the database
-            ```
-
-        Returns:
-            The object found with the criteria if any
-        """
-        self.verify_kws(kws)
-        q, vals = queries.for_get_or_none(self.tablename, kws)
-        with contextcursor(self.connection) as cur:
-            cur.execute(q, vals)
-            row: Union[Row, None] = cur.fetchone()
-            if row:
-                return self._row2obj(row)
-        return None
-
     def insert(self, **kws: SQLFieldType) -> M:
         """Inserts a record into the database.
 
@@ -135,6 +109,32 @@ class Crud(BaseCrud, Generic[M]):
         """
         self.verify_kws(kws)
         return self._do_insert(True, True, **kws)
+    
+    def get_or_none(self, **kws: SQLFieldType) -> Optional[M]:
+        """Returns a row as an instance of the model if one is found or none
+
+        Args:
+            kws (SQLFieldType): The keyword arguments are passed as column names and values to
+                a select query
+
+        Example:
+            ```py
+            crud.get_or_none(id=42)
+
+            # returns an object with id of 42 or None if there isn't one in the database
+            ```
+
+        Returns:
+            The object found with the criteria if any
+        """
+        self.verify_kws(kws)
+        q, vals = queries.for_get_or_none(self.tablename, kws)
+        with contextcursor(self.connection) as cur:
+            cur.execute(q, vals)
+            row: Union[Row, None] = cur.fetchone()
+            if row:
+                return self._row2obj(row)
+        return None
 
     def get_or_create(self, **kws: SQLFieldType) -> tuple[M, bool]:
         """Returns an object from the database with the spefied matching data
@@ -181,7 +181,10 @@ class Crud(BaseCrud, Generic[M]):
         """
         self.verify_kws(kws)
         q, vals = queries.for_get_many(
-            self.Model, order_by=order_by, limit=limit, kws=kws
+            self.Model, 
+            order_by=order_by,
+            limit=limit, 
+            kws=kws,
         )
         with contextcursor(self.connection) as cur:
             cur.execute(q, vals)

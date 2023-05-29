@@ -196,7 +196,7 @@ def for_delete_many(objs: tuple[M]) -> tuple[str, tuple[Any, ...]]:
         vals = tuple(obj.__rowid__ for obj in objs)
         q = f"DELETE FROM {tablename} WHERE rowid IN ({placeholders})"
 
-    elif pk := objs[0].__pk__:
+    elif (pk := objs[0].__pk__) and all(getattr(o, pk, None) is not None for o in objs):
         vals = tuple(getattr(obj, pk) for obj in objs)
         q = f"DELETE FROM {tablename} WHERE id IN ({placeholders})"
 

@@ -20,6 +20,9 @@ class Engine(BaseEngine):
         enable_foreing_keys (bool): if True, the engine enables the pragma on all connections
     """
     con: sqlite3.Connection
+    
+    def __init__(self, path: str, enable_foreing_keys: bool = False):
+        super().__init__(path, enable_foreing_keys)
         
     def __enter__(self):
         self.connect()

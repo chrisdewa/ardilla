@@ -24,10 +24,10 @@ class ConnectionProxy:
         self._connection = connection
     
     def __getattr__(self, __name: str) -> Any:
-        if self._connection._running and self._connection._connection:
-            return getattr(self._connection, __name)
-        else:
-            raise DisconnectedEngine('The engine is disconnected')
+        if __name in {'execute', 'commit'}:
+            if not self._connection._running or not self._connection._connection:
+                raise DisconnectedEngine('The engine is disconnected')
+        return getattr(self._connection, __name)
 
 
 class AsyncCrud(BaseCrud, Generic[M]):
