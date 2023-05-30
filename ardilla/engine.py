@@ -1,5 +1,6 @@
 from __future__ import annotations
 import sqlite3
+from typing import Union
 
 from .models import M
 from .crud import Crud
@@ -23,6 +24,24 @@ class Engine(BaseEngine):
     
     def __init__(self, path: str, enable_foreing_keys: bool = False):
         super().__init__(path, enable_foreing_keys)
+    
+    def get_connection(self) -> sqlite3.Connection:
+        """Gets the connections or makes a new one but it doesn't set it as an attrib
+
+        Returns:
+            sqlite3.Connection: the connection
+        """
+        con: Union[sqlite3.Connection, None] = getattr(self, 'con', None)
+        if not self.check_connection():
+            con = sqlite3.connect(self.path)
+            con.row_factory = sqlite3.Row
+            
+            if self.enable_foreing_keys:
+                con.execute("PRAGMA foreign_keys = on;")
+            
+            return con
+        else:
+            return self.con
         
     def __enter__(self):
         self.connect()
@@ -30,16 +49,11 @@ class Engine(BaseEngine):
     
     def __exit__(self, *_):
         self.close()
-    
+        
     def connect(self) -> sqlite3.Connection:
         self.close()
-        con = sqlite3.connect(self.path)
-        con.row_factory = sqlite3.Row
-        
-        if self.enable_foreing_keys:
-            con.execute("PRAGMA foreign_keys = on;")
-        self.con = con
-        return con
+        self.con = self.get_connection()
+        return self.con
 
     def close(self) -> None:
         if self.check_connection():

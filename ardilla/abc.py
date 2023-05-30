@@ -1,6 +1,6 @@
 from __future__ import annotations
 import sqlite3
-from typing import Any, Literal, TypeVar, Optional
+from typing import Any, Literal, TypeVar, Optional, Union
 from abc import abstractmethod, ABC
 from sqlite3 import Row
 
@@ -31,15 +31,18 @@ class BaseEngine(ABC):
         Returns:
             bool: if the connection is fine
         """
+        con: Union[Connection, None] = getattr(self, 'con', None)
         try:
-            if isinstance(self.con, sqlite3.Connection):
-                self.con.cursor()
+            if isinstance(con, sqlite3.Connection):
+                con.cursor()
                 return True
-            else:
+            elif con is not None:
                 # should be aiosqlite
                 # we don't import it here to prevent import errors 
                 # in case there's missing dependency of aiosqlite
-                return self.con._running and self.con._connection                
+                return con._running and con._connection
+            else:
+                return None
         except:
             return False
 
@@ -53,6 +56,10 @@ class BaseEngine(ABC):
         self.tables_created: set[str] = set()
         self._cruds: dict[type[M], CrudType] = {}
         self.enable_foreing_keys = enable_foreing_keys
+    
+    @abstractmethod
+    def get_connection(self) -> Connection:
+        ...
         
     @abstractmethod
     def connect(self) -> Connection:

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from ctypes import Union
 
 import aiosqlite
 
@@ -12,6 +13,24 @@ class AsyncEngine(BaseEngine):
     """Async Engine that uses `aiosqlite.Connection` and `aiosqlite.Cursor`
     """
     con: aiosqlite.Connection
+
+    async def get_connection(self) -> aiosqlite.Connection:
+        """Gets the connections or makes a new one but it doesn't set it as an attrib
+
+        Returns:
+            sqlite3.Connection: the connection
+        """
+        con: Union[aiosqlite.Connection, None] = getattr(self, 'con', None)
+        if not self.check_connection():
+            con: aiosqlite.Connection = await aiosqlite.connect(self.path)
+            con.row_factory = aiosqlite.Row
+            
+            if self.enable_foreing_keys:
+                await con.execute("PRAGMA foreign_keys = on;")
+            
+            return con
+        else:
+            return self.con
     
     async def connect(self) -> aiosqlite.Connection:
         """
@@ -20,12 +39,9 @@ class AsyncEngine(BaseEngine):
             The connection
         """
         await self.close()
-        con = await aiosqlite.connect(self.path)
-        con.row_factory = aiosqlite.Row
-        if self.enable_foreing_keys:
-            await con.execute('PRAGMA foreign_keys = ON;')
-        self.con = con
-        return con
+        
+        self.con = await self.get_connection()
+        return self.con
 
     async def close(self) -> None:
         if self.check_connection():
