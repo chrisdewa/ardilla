@@ -5,7 +5,7 @@
 
 <div style="text-align:center">
   <img 
-    src="https://images-ext-2.discordapp.net/external/sxevZWKA4UIZWNyt352zkHLGWrUMw_PV_jGWLXGPh_I/https/repository-images.githubusercontent.com/638528340/a0238c4e-addf-4130-a0fe-9a458be6cdc9?width=200&height=150"
+    src="https://images-ext-2.discordapp.net/external/x805WO_foe1CtyWMNyUDl26wNryhN5MmJzBhs6JGKOU/https/repository-images.githubusercontent.com/638528340/5dec5f3d-1af7-420a-89bc-465fae9f3875?width=200&height=150"
   >  
 </div>
 
