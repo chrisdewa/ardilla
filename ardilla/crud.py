@@ -7,7 +7,7 @@ from typing import Literal, Generic, Optional, Union, Generator
 from . import queries
 from .abc import BaseCrud
 from .models import M
-from .errors import QueryExecutionError, disconnected_engine_error, DisconnectedEngine
+from .errors import BadQueryError, QueryExecutionError, disconnected_engine_error, DisconnectedEngine
 from .schemas import SQLFieldType
 
 
@@ -268,3 +268,30 @@ class Crud(BaseCrud, Generic[M]):
         except:
             raise disconnected_engine_error
         return True
+
+    def count(self, column: str = '*',/, **kws) -> int:
+        """Returns an integer of the number of non null values in a column
+        Or the total number of rows if '*' is passed
+
+        Args:
+            column (str, optional): The column name to count rows on. 
+                Defaults to '*' which counts all the rows in the table
+
+        Returns:
+            int: the number of rows with non null values in a column or the number of rows in a table
+        """
+        self.verify_kws(kws)
+        
+        tablename = self.Model.__tablename__
+        if column not in self.Model.__fields__ and column != '*':
+            raise BadQueryError(f'"{column}" is not a field of the "{tablename}" table')
+        
+        
+        q, vals = queries.for_count(tablename, column, kws)
+        with contextcursor(self.connection) as cur:
+            cur.execute(q, vals)
+            row = cur.fetchone()
+    
+            count = row['total_count']
+                
+        return count

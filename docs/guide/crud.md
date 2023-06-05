@@ -159,4 +159,14 @@ from ardilla import Crud
 crud = Crud(YourModel, sqlite3.connect('db.sqlite'))
 ```
 
+## additional methods
 
+### count
+
+Count outputs an integer of the number of fields with non null values over a single column or the whole table.
+You can further restring the number of rows with key words
+
+```py
+count = crud.count(age=35)
+# number of items in the table where the "age" column has the value 35
+```

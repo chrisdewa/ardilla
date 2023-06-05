@@ -183,3 +183,7 @@ class BaseCrud(ABC):
     @abstractmethod
     def delete_many(self, *objs: M) -> Literal[True]:
         ...
+
+    @abstractmethod
+    def count(self, column: str = '*', /, **kws) -> int:
+        ...

@@ -107,7 +107,7 @@ async def test_save_many():
         crud = await engine.crud(User)
         await crud.save_many(*users)
 
-        assert len(await crud.get_all()) == 20
+        assert await crud.count() == 20
 
 # READ
 @pytest.mark.asyncio
@@ -117,8 +117,7 @@ async def test_get_all():
         for n in range(10):
             await crud.insert(name=f'user {n}')
 
-        total = len(await crud.get_all())
-        assert total == 10
+        assert await crud.count() == 10
 
 @pytest.mark.asyncio
 async def test_get_many():
@@ -128,10 +127,8 @@ async def test_get_many():
         for name in names:
             for _ in range(3):
                 await crud.insert(name=name)
-        
-        chrises = await crud.get_many(name='chris')
-        
-        assert len(chrises) == 3
+                
+        assert await crud.count(name='chris') == 3
 
 @pytest.mark.asyncio
 async def test_get_or_create():
@@ -180,8 +177,7 @@ async def test_delete_many():
         to_delete = users[:-1]
         await crud.delete_many(*to_delete)
         
-        users = await crud.get_all()
-        assert len(users) == 1, "Delete many didn't delete the correct amount of users"
+        assert await crud.count() == 1, "Delete many didn't delete the correct amount of users"
 
 @pytest.mark.asyncio
 async def test_foreign_keys():
@@ -208,11 +204,9 @@ async def test_foreign_keys():
         for n in range(5):
             await ucrud.insert(name=f'user {n}', guild_id=guild.id)
     
-    users = await ucrud.get_all()
-    assert len(users) == 10
+    assert await ucrud.count() == 10
     await gcrud.delete_one(ga)
-    users = await ucrud.get_all()
-    assert len(users) == 5 
+    assert await ucrud.count() == 5 
     await engine.close()
     db.unlink(missing_ok=True)
 

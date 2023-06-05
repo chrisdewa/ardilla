@@ -101,7 +101,7 @@ def test_save_many():
         crud = engine.crud(User)
         crud.save_many(*users)
 
-        assert len(crud.get_all()) == 20
+        assert crud.count() == 20
 
 # READ
 def test_get_all():
@@ -110,7 +110,7 @@ def test_get_all():
         for n in range(10):
             crud.insert(name=f'user {n}')
 
-        total = len(crud.get_all())
+        total = crud.count()
         assert total == 10
 
 def test_get_many():
@@ -121,9 +121,9 @@ def test_get_many():
             for _ in range(3):
                 crud.insert(name=name)
         
-        chrises = crud.get_many(name='chris')
+        chrises = crud.count(name='chris')
         
-        assert len(chrises) == 3
+        assert chrises == 3
 
 def test_get_or_create():
     with cleanup(), Engine(db) as engine:
@@ -197,11 +197,9 @@ def test_foreign_keys():
         for n in range(5):
             ucrud.insert(name=f'user {n}', guild_id=guild.id)
     
-    users = ucrud.get_all()
-    assert len(users) == 10
+    assert ucrud.count() == 10
     gcrud.delete_one(ga)
-    users = ucrud.get_all()
-    assert len(users) == 5 
+    assert ucrud.count() == 5 
     engine.close()
     db.unlink(missing_ok=True)
 

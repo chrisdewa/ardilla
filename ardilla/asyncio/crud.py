@@ -5,7 +5,7 @@ from typing import Any
 import aiosqlite
 from aiosqlite import Row
 
-from ..errors import QueryExecutionError, disconnected_engine_error
+from ..errors import BadQueryError, QueryExecutionError, disconnected_engine_error
 from ..models import M
 from ..abc import BaseCrud
 from ..schemas import SQLFieldType
@@ -252,3 +252,25 @@ class AsyncCrud(BaseCrud, Generic[M]):
 
         await self.connection.execute(q, vals)
         await self.connection.commit()
+        
+    async def count(self, column: str = '*', /, **kws) -> int:
+        """Returns an integer of the number of non null values in a column
+        Or the total number of rows if '*' is passed
+
+        Args:
+            column (str, optional): The column name to count rows on. 
+                Defaults to '*' which counts all the rows in the table
+
+        Returns:
+            int: the number of rows with non null values in a column or the number of rows in a table
+        """
+        tablename = self.Model.__tablename__
+        if column not in self.Model.__fields__ and column != '*':
+            raise BadQueryError(f'"{column}" is not a field of the "{tablename}" table')
+        
+        q, vals = queries.for_count(tablename, column, kws)
+        async with self.connection.execute(q, vals) as cur:
+            row = await cur.fetchone()    
+            count = row['total_count']
+                
+        return count

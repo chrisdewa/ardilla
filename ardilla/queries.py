@@ -2,7 +2,7 @@
 Methods here are used by Crud classes to obtain the query 
 strings and variable tuples to pass to the connections and cursors
 """
-from typing import Any, Optional
+from typing import Any, Optional, Union
 from .errors import BadQueryError
 from .models import M
 from .ordering import validate_ordering
@@ -207,3 +207,27 @@ def for_delete_many(objs: tuple[M]) -> tuple[str, tuple[Any, ...]]:
 
     log_query(q, vals)
     return q, vals
+
+
+def for_count(tablename: str, column: str = '*', kws: Optional[dict] = None) -> tuple[str, tuple]:
+    """Returns a query for counting the number of non null values in a column
+
+    Args:
+        tablename (str): The name of the table.
+        column (str, optional): The column to count. . Defaults to '*' which then counts all the rows
+        kws (dict, optional): The key/value pair for the "WHERE" clausule
+            If not specified the complete table will be used.
+
+    Returns:
+        tuple: the query and vals
+    """
+    q = f'SELECT COUNT({column}) AS total_count FROM {tablename}'
+    
+    vals = ()
+    if kws:
+        keys, vals = zip(*kws.items())
+        placeholders = ', '.join(f'{k} = ?' for k in keys)
+        q += f' WHERE {placeholders};'
+        
+    return q, vals
+
