@@ -29,7 +29,12 @@ dependencies = [
 
 [project.optional-dependencies]
 async = ["aiosqlite==0.19.0",]
-examples = ["fastapi-0.95.1", "uvicorn-0.22.0"]
+
+examples = [
+  "fastapi==0.95.1", 
+  "uvicorn==0.22.0"
+]
+
 dev = [
   "pytest==7.3.1", # testing
   "pytest-asyncio==0.21.0", # testing async
