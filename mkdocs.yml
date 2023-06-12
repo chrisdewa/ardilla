@@ -11,11 +11,13 @@ nav:
     - guide/fields.md
     - guide/engine.md
     - guide/crud.md
+    - guide/migration.md
   - API Reference:
     - api_ref/crud.md
     - api_ref/model.md
     - api_ref/engine.md
   - Licence: licence.md
+  - Changelog: changelog.md
   - Library Alternatives: ardilla_alternatives.md
 
 plugins:

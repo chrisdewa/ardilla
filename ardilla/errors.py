@@ -30,3 +30,7 @@ class DisconnectedEngine(ArdillaException):
 disconnected_engine_error = DisconnectedEngine(
     "The engine has been disconnected and cannot operate on the database"
 )
+
+
+class MigrationError(ArdillaException):
+    pass

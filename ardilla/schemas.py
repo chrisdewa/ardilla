@@ -5,12 +5,14 @@ import re
 from typing import Optional, Union
 from datetime import datetime, date, time
 from pydantic import BaseModel, Json
+from pydantic.fields import ModelField
+
 from .errors import ModelIntegrityError
 
 
 SCHEMA_TEMPLATE: str = "CREATE TABLE IF NOT EXISTS {tablename} (\n{fields}\n);"
 
-SQLFieldType = Union[int,float,str,bool,datetime,bytes,date,time]
+SQLFieldType = Union[int, float, str, bool, datetime, bytes, date, time]
 
 FIELD_MAPPING: dict[type, str] = {
     int: "INTEGER",
@@ -27,8 +29,9 @@ AUTOFIELDS = {
     int: " AUTOINCREMENT",
     datetime: " DEFAULT CURRENT_TIMESTAMP",
     date: " DEFAULT CURRENT_DATE",
-    time: " DEFAULT CURRENT_TIME"
+    time: " DEFAULT CURRENT_TIME",
 }
+
 
 def get_tablename(model: type[BaseModel]) -> str:
     """returns the tablename of a model either from the attribute __tablenam__
@@ -43,107 +46,104 @@ def get_tablename(model: type[BaseModel]) -> str:
     return getattr(model, "__tablename__", model.__name__.lower())
 
 
-def get_fields_schemas(Model: type[BaseModel]) -> list[str]:
-    """Generates the fields for the table schema of the passed model
+def make_field_schema(field: ModelField) -> dict:
+    output = {}
+    name = field.name
+    T = field.type_
+    default = field.default
+    extra = field.field_info.extra
+    auto = output["auto"] = extra.get("auto")
+    unique = output["unique"] = extra.get("unique")
+    is_pk = False
+    constraint = None
 
-    Args:
-        model (type[BaseModel]): the model
+    if default and unique:
+        raise ModelIntegrityError(
+            "field {name} has both unique and default constrains which are incompatible"
+        )
 
-    Raises:
-        TypeError: if the field is not listed in ardilla.schemas.FIELD_MAPPING
-        ModelIntegrityError: if there's a Model field that is marked as pk but
-            the model's __pk__ attr points to a different field
+    autoerror = ModelIntegrityError(
+        f'field {name} has a type of "{T}" which does not support "auto"'
+    )
+    schema = f"{name} {FIELD_MAPPING[T]}"
 
-    Returns:
-        str: a string containing the formatted fields to be added to a table schema
-    """
-    schemas = []
-    constrains = []
-    pk = None
-    for field in Model.__fields__.values():
-        name = field.name
-        T = field.type_
-        default = field.default
-        extra = field.field_info.extra
-        auto = extra.get('auto')
-        unique = extra.get('unique')
-        if default and unique:
-            raise ModelIntegrityError("field {name} has both unique and default constrains which are incompatible")
-        
-        autoerror = ModelIntegrityError(f'field {name} has a type of "{T}" which does not support "auto"')
-        schema = f'{name} {FIELD_MAPPING[T]}'
-        
-        primary_field_keys = {'pk', 'primary', 'primary_key'}
-        if len(extra.keys() & primary_field_keys) >1:
-            raise ModelIntegrityError(f'Multiple keywords for a primary field in "{name}"')
-        
-        for k in primary_field_keys:
-            if k in extra and extra[k]:
-                if pk is not None:
-                    raise ModelIntegrityError('Only one primary key per model is allowed')
-                elif hasattr(Model, '__pk__') and Model.__pk__ != name:
-                    raise ModelIntegrityError(f"field {name} is marked as pk, but __pk__ points to another field.")
-                
-                pk = name
-                
-                schema += ' PRIMARY KEY'
+    primary_field_keys = {"pk", "primary", "primary_key"}
+    if len(extra.keys() & primary_field_keys) > 1:
+        raise ModelIntegrityError(f'Multiple keywords for a primary field in "{name}"')
 
-                if auto and T in AUTOFIELDS:
-                    schema += AUTOFIELDS[T]
-                    # make the field not required
-                    # this allows users to create
-                    # objects from the model without knowing the final 
-                    # value in the database
-                    field.required = False
-                elif auto:
-                    raise autoerror
-                break
-        else:
-            if auto and T in AUTOFIELDS.keys() - {int}:
+    for k in primary_field_keys:
+        if k in extra and extra[k]:
+            is_pk = True
+
+            schema += " PRIMARY KEY"
+
+            if auto and T in AUTOFIELDS:
                 schema += AUTOFIELDS[T]
+                field.required = (
+                    False  # to allow users to create the objs without this field
+                )
+
             elif auto:
                 raise autoerror
-            elif default is not None:
-                if T in {int, str, float, bool}:
-                    schema += f' DEFAULT {default!r}'
-                elif T in {datetime, date, time}:
-                    schema += f' DEFAULT {default}'
-                elif T is bytes:
-                    schema += f" DEFAULT (X'{default.hex()}')"
-            elif field.required:
-                    schema += ' NOT NULL'
-            if unique:
-                schema += ' UNIQUE'
-                    
-        schemas.append(schema)
 
-        if extra.get('references'):
-            references, fk, on_delete, on_update = (extra.get(f) for f in ['references', 'fk', 'on_delete', 'on_update'])
-            constrains.append(
-                f'FOREIGN KEY ({name}) '
-                f'REFERENCES {references}({fk}) '
-                f'ON UPDATE {on_update} '
-                f'ON DELETE {on_delete}'
-            )
-            
-    return schemas + constrains
+            break
+    else:
+        if auto and T in AUTOFIELDS.keys() - {int}:
+            schema += AUTOFIELDS[T]
+        elif auto:
+            raise autoerror
+        elif default is not None:
+            if T in {int, str, float, bool}:
+                schema += f" DEFAULT {default!r}"
+            elif T in {datetime, date, time}:
+                schema += f" DEFAULT {default}"
+            elif T is bytes:
+                schema += f" DEFAULT (X'{default.hex()}')"
+        elif field.required:
+            schema += " NOT NULL"
+        if unique:
+            schema += " UNIQUE"
+
+    if extra.get("references"):
+        references, fk, on_delete, on_update = (
+            extra.get(f) for f in ["references", "fk", "on_delete", "on_update"]
+        )
+        constraint = (
+            f"FOREIGN KEY ({name}) "
+            f"REFERENCES {references}({fk}) "
+            f"ON UPDATE {on_update} "
+            f"ON DELETE {on_delete}"
+        )
+
+    output.update({"pk": is_pk, "schema": schema, "constraint": constraint})
+
+    return output
 
 
 def make_table_schema(Model: type[BaseModel]) -> str:
-    """Generates the schema from a model based on its field configuration
-
-    Args:
-        Model (type[BaseModel]): the model
-
-    Returns:
-        str: the generated schema
-    """
     tablename = get_tablename(Model)
-    fields = get_fields_schemas(Model)
+    fields = []
+    constrains = []
+    pk = None
+    for field in Model.__fields__.values():
+        name = field
+        field_schema = make_field_schema(field)
+        if field_schema["pk"] is True:
+            if pk is not None:
+                raise ModelIntegrityError(
+                    f'field "{name}" is marked as primary but there is already a primary key field "{pk}"'
+                )
+            pk = field.name
+        fields.append(field_schema["schema"])
+
+        constrains.append(field_schema["constraint"]) if field_schema[
+            "constraint"
+        ] else None
+
     schema = (
-        f'CREATE TABLE IF NOT EXISTS {tablename}(\n' +
-        ',\n'.join(f'\r    {f}' for f in fields) +
-        '\n);'
+        f"CREATE TABLE IF NOT EXISTS {tablename}(\n"
+        + ",\n".join(f"\r    {f}" for f in (fields + constrains))
+        + "\n);"
     )
     return schema
 

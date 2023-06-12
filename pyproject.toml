@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ardilla"
-version = "0.3.4-beta"
+version = "0.4.0-beta"
 authors = [
   { name="ChrisDewa", email="chrisdewa@duck.com" },
 ]
