@@ -27,8 +27,8 @@ def test_tablename_change():
             crud = engine.crud(A)
             crud.insert(field='something')
         
-        class B(A):
-            pass
+        class B(Model):
+            field: str
 
         script = generate_migration_script(
             A, B, original_tablename='a', new_tablename='b'
