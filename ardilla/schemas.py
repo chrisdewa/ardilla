@@ -5,25 +5,16 @@ import re
 from typing import Optional, Union
 from datetime import datetime, date, time
 from pydantic import BaseModel, Json
-from pydantic.fields import ModelField
+from pydantic.fields import FieldInfo
+from pydantic_core import PydanticUndefined
 
 from .errors import ModelIntegrityError
+from .types import FIELD_MAPPING, get_annotation_type
 
 
 SCHEMA_TEMPLATE: str = "CREATE TABLE IF NOT EXISTS {tablename} (\n{fields}\n);"
 
 SQLFieldType = Union[int, float, str, bool, datetime, bytes, date, time]
-
-FIELD_MAPPING: dict[type, str] = {
-    int: "INTEGER",
-    float: "REAL",
-    str: "TEXT",
-    bool: "INTEGER",
-    datetime: "DATETIME",
-    bytes: "BLOB",
-    date: "DATE",
-    time: "TIME",
-}
 
 AUTOFIELDS = {
     int: " AUTOINCREMENT",
@@ -46,12 +37,11 @@ def get_tablename(model: type[BaseModel]) -> str:
     return getattr(model, "__tablename__", model.__name__.lower())
 
 
-def make_field_schema(field: ModelField) -> dict:
+def make_field_schema(name: str, field: FieldInfo) -> dict:
     output = {}
-    name = field.name
-    T = field.type_
-    default = field.default
-    extra = field.field_info.extra
+    T = get_annotation_type(field.annotation)
+    default = field.default if field.default is not PydanticUndefined else None
+    extra = field.json_schema_extra or {}
     auto = output["auto"] = extra.get("auto")
     unique = output["unique"] = extra.get("unique")
     is_pk = False
@@ -59,7 +49,7 @@ def make_field_schema(field: ModelField) -> dict:
 
     if default and unique:
         raise ModelIntegrityError(
-            "field {name} has both unique and default constrains which are incompatible"
+            f"field {name} has both unique and default constrains which are incompatible"
         )
 
     autoerror = ModelIntegrityError(
@@ -79,9 +69,7 @@ def make_field_schema(field: ModelField) -> dict:
 
             if auto and T in AUTOFIELDS:
                 schema += AUTOFIELDS[T]
-                field.required = (
-                    False  # to allow users to create the objs without this field
-                )
+                field.default = None
 
             elif auto:
                 raise autoerror
@@ -99,7 +87,7 @@ def make_field_schema(field: ModelField) -> dict:
                 schema += f" DEFAULT {default}"
             elif T is bytes:
                 schema += f" DEFAULT (X'{default.hex()}')"
-        elif field.required:
+        elif field.is_required():
             schema += " NOT NULL"
         if unique:
             schema += " UNIQUE"
@@ -116,7 +104,6 @@ def make_field_schema(field: ModelField) -> dict:
         )
 
     output.update({"pk": is_pk, "schema": schema, "constraint": constraint})
-
     return output
 
 
@@ -125,21 +112,20 @@ def make_table_schema(Model: type[BaseModel]) -> str:
     fields = []
     constrains = []
     pk = None
-    for field in Model.__fields__.values():
-        name = field
-        field_schema = make_field_schema(field)
+    for name, field in Model.model_fields.items():
+        field_schema = make_field_schema(name, field)
         if field_schema["pk"] is True:
             if pk is not None:
                 raise ModelIntegrityError(
                     f'field "{name}" is marked as primary but there is already a primary key field "{pk}"'
                 )
-            pk = field.name
+            pk = name
         fields.append(field_schema["schema"])
 
         constrains.append(field_schema["constraint"]) if field_schema[
             "constraint"
         ] else None
-
+    
     schema = (
         f"CREATE TABLE IF NOT EXISTS {tablename}(\n"
         + ",\n".join(f"\r    {f}" for f in (fields + constrains))

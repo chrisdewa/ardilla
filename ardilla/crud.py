@@ -283,7 +283,7 @@ class Crud(BaseCrud, Generic[M]):
         self.verify_kws(kws)
         
         tablename = self.Model.__tablename__
-        if column not in self.Model.__fields__ and column != '*':
+        if column not in self.Model.model_fields and column != '*':
             raise BadQueryError(f'"{column}" is not a field of the "{tablename}" table')
         
         

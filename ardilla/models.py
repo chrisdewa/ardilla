@@ -1,12 +1,13 @@
 """
 Contains the Model object and typing alias to work with the engines and Cruds
 """
+from typing import Optional, TypeVar, get_origin
+from pydantic import BaseModel
 
-from typing import Optional, TypeVar
-from pydantic import BaseModel, PrivateAttr
-
-from .schemas import make_table_schema, FIELD_MAPPING, get_tablename, get_pk
+from . import types
+from .schemas import make_table_schema, get_tablename, get_pk
 from .errors import ModelIntegrityError
+
 
 
 class Model(BaseModel):
@@ -32,27 +33,31 @@ class Model(BaseModel):
             name: str
         ```
     """
-    __rowid__: Optional[int] = PrivateAttr(default=None)
+    __rowid__: Optional[int] = None
     __pk__: Optional[str]  # tells the model which key to idenfity as primary
     __tablename__: str  # will default to the lowercase name of the subclass
     __schema__: str  # best effort will be made if it's missing
     # there's no support for constrains or foreign fields yet but you can
     # define your own schema to support them
 
-    def __init_subclass__(cls, **kws) -> None:
-
-        for field in cls.__fields__.values():
-            if field.type_ not in FIELD_MAPPING:
+    @classmethod
+    def __pydantic_init_subclass__(cls, **kws) -> None:
+        for name, field in cls.model_fields.items():
+            if not types.check_type_annotation(field.annotation):
                 raise ModelIntegrityError(
-                    f'Field "{field.name}" of model "{cls.__name__}" is of unsupported type "{field.type_}"'
+                    f'Field "{name}" of model "{cls.__name__}" is of unsupported type "{field.annotation}"'
                 )
 
-            if field.field_info.extra.keys() & {'primary', 'primary_key', 'pk'}:
-                if getattr(cls, '__pk__', None) not in {None, field.name}:
+            if (
+                field.json_schema_extra 
+                and field.json_schema_extra.keys() 
+                    & {'primary', 'primary_key', 'pk'}
+            ):
+                if getattr(cls, '__pk__', None) not in {None, name}:
                     raise ModelIntegrityError('More than one fields defined as primary')
                 
-                cls.__pk__ = field.name 
-
+                cls.__pk__ = name 
+                
         if not hasattr(cls, "__schema__"):
             cls.__schema__ = make_table_schema(cls)
         
@@ -63,7 +68,7 @@ class Model(BaseModel):
             tablename = get_tablename(cls)
             setattr(cls, "__tablename__", tablename)
 
-        super().__init_subclass__(**kws)
+        # super().__post_init__(**kws)
 
     def __str__(self) -> str:
         return f"{self!r}"

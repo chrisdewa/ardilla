@@ -265,7 +265,7 @@ class AsyncCrud(BaseCrud, Generic[M]):
             int: the number of rows with non null values in a column or the number of rows in a table
         """
         tablename = self.Model.__tablename__
-        if column not in self.Model.__fields__ and column != '*':
+        if column not in self.Model.model_fields and column != '*':
             raise BadQueryError(f'"{column}" is not a field of the "{tablename}" table')
         
         q, vals = queries.for_count(tablename, column, kws)

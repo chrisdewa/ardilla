@@ -39,8 +39,8 @@ def generate_migration_script(
     
     tablename = tablename if not new_tablename else new_tablename
 
-    old_fields = set(old.__fields__)
-    new_fields = set(new.__fields__)
+    old_fields = set(old.model_fields)
+    new_fields = set(new.model_fields)
 
     dropped = old_fields - new_fields
     for field_name in dropped:
@@ -48,8 +48,8 @@ def generate_migration_script(
 
     added = new_fields - old_fields
     for field_name in added:
-        field = new.__fields__[field_name]
-        schema = make_field_schema(field)
+        field = new.model_fields[field_name]
+        schema = make_field_schema(field_name, field)
         if schema["unique"]:
             raise MigrationError(
                 f"cannot process '{field_name}' because it's marked as unique"
@@ -70,12 +70,12 @@ def generate_migration_script(
     conserved = old_fields & new_fields
     alter_fields = False
     for f in conserved:
-        old_schema = make_field_schema(old.__fields__[f])
-        new_schema = make_field_schema(new.__fields__[f])
+        old_schema = make_field_schema(f, old.model_fields[f])
+        new_schema = make_field_schema(f, new.model_fields[f])
         if old_schema != new_schema:
             alter_fields = True
             
-            # if old.__fields__[f].type_ != new.__fields__[f].type_:
+            # if old.model_fields[f].type_ != new.model_fields[f].type_:
             #     print(
             #         f"Ardilla can't handle type changes for now. "
             #         f"You'll have to migrate this on your own."
@@ -85,7 +85,7 @@ def generate_migration_script(
 
     if alter_fields is True:
         new_table_schema = make_table_schema(new)
-        cols = ', '.join(name for name in new.__fields__)
+        cols = ', '.join(name for name in new.model_fields)
 
         script = f'''
         \rALTER TABLE {tablename} RENAME TO _{tablename};

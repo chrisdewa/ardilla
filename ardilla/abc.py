@@ -87,7 +87,7 @@ class BaseCrud(ABC):
         self.connection = connection
 
         self.tablename = Model.__tablename__
-        self.columns = tuple(Model.__fields__)
+        self.columns = tuple(Model.model_fields)
 
     def __new__(cls, Model: type[M], connection: Connection):
         if not issubclass(Model, BaseModel):
@@ -106,7 +106,7 @@ class BaseCrud(ABC):
             Literal[True]: If the kws are verified
         """
         for key in kws:
-            if key not in self.Model.__fields__:
+            if key not in self.Model.model_fields:
                 raise KeyError(
                     f'"{key}" is not a field of the "{self.Model.__name__}" and cannot be used in queries'
                 )
@@ -120,7 +120,7 @@ class BaseCrud(ABC):
                 If passed it means it comes from an insert function
 
         """
-        keys = list(self.Model.__fields__)
+        keys = list(self.Model.model_fields)
         if rowid is None:
             rowid, *vals = row
         else:

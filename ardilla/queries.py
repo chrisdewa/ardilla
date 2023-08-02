@@ -42,7 +42,7 @@ def for_get_many(
         kws (dict): the keywords to identify the rows with
     """
     tablename = Model.__tablename__
-    columns = tuple(Model.__fields__)
+    columns = tuple(Model.model_fields)
 
     if kws:
         keys, vals = zip(*kws.items())
@@ -107,7 +107,7 @@ def for_save_one(obj: M) -> tuple[str, tuple[Any, ...]]:
     Returns:
         tuple[str, tuple[Any, ...]]: the query and values
     """
-    cols, vals = zip(*obj.dict().items())
+    cols, vals = zip(*obj.model_dump().items())
 
     if obj.__rowid__ is not None:
         q = f"""
@@ -138,11 +138,11 @@ def for_save_many(objs: tuple[M]) -> tuple[str, tuple[Any, ...]]:
     """
     if not objs:
         raise BadQueryError("To save many, you have to at least past one object")
-    cols = tuple(objs[0].__fields__)
+    cols = tuple(objs[0].model_fields)
     tablename = objs[0].__tablename__
     placeholders = ", ".join("?" * len(cols))
     q = f'INSERT OR REPLACE INTO {tablename} ({", ".join(cols)}) VALUES ({placeholders});'
-    vals = tuple(tuple(obj.dict().values()) for obj in objs)
+    vals = tuple(tuple(obj.model_dump().values()) for obj in objs)
     log_query(q, vals)
     return q, vals
 
@@ -164,7 +164,7 @@ def for_delete_one(obj: M) -> tuple[str, tuple[Any, ...]]:
         q = f"DELETE FROM {tablename} WHERE rowid = ?"
         vals = (obj.__rowid__,)
     else:
-        obj_dict = obj.dict()
+        obj_dict = obj.model_dump()
         placeholders = " AND ".join(f"{k} = ?" for k in obj_dict)
         vals = tuple(obj_dict[k] for k in obj_dict)
         q = f"""
