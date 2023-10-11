@@ -60,7 +60,7 @@ class User(Model):
     age: int
 
 def main():
-    with Engine('db.sqlite') as engine:
+    with Engine('db.sqlite') as crud:
       user = crud.get_or_none(id=1) # user with id of 1
       user2, was_created = crud.get_or_create(id=2, name='chris', age=35)
       users = crud.get_many(name='chris') # all users named chris
