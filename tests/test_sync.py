@@ -7,7 +7,7 @@ from functools import partial
 
 from ardilla import Engine, Model, Crud
 from ardilla.errors import QueryExecutionError, DisconnectedEngine
-from pydantic import Field
+from ardilla import Field
 
 from ardilla.fields import ForeignField
 

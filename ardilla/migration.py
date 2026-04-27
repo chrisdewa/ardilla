@@ -37,7 +37,7 @@ def generate_migration_script(
             f"ALTER TABLE {original_tablename} RENAME TO {new_tablename};"
         )
     
-    tablename = tablename if not new_tablename else new_tablename
+    tablename = original_tablename if not new_tablename else new_tablename
 
     old_fields = set(old.model_fields)
     new_fields = set(new.model_fields)

@@ -5,8 +5,6 @@ from datetime import datetime
 from ardilla import Model, Field
 from ardilla.errors import ModelIntegrityError
 
-from pydantic import Json
-
 
 def test_default_tablename():
     class Foo(Model):

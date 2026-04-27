@@ -1,7 +1,7 @@
 """
 Contains the Model object and typing alias to work with the engines and Cruds
 """
-from typing import Optional, TypeVar, get_origin
+from typing import ClassVar, Optional, TypeVar, get_origin
 from pydantic import BaseModel
 
 from . import types
@@ -34,9 +34,9 @@ class Model(BaseModel):
         ```
     """
     __rowid__: Optional[int] = None
-    __pk__: Optional[str]  # tells the model which key to idenfity as primary
-    __tablename__: str  # will default to the lowercase name of the subclass
-    __schema__: str  # best effort will be made if it's missing
+    __pk__: ClassVar[Optional[str]]
+    __tablename__: ClassVar[str]
+    __schema__: ClassVar[str]
     # there's no support for constrains or foreign fields yet but you can
     # define your own schema to support them
 

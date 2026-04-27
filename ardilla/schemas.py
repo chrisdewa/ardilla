@@ -4,12 +4,12 @@ variables and functions here are used to generate and work with the Model's sche
 import re
 from typing import Optional, Union
 from datetime import datetime, date, time
-from pydantic import BaseModel, Json
+from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 from pydantic_core import PydanticUndefined
 
 from .errors import ModelIntegrityError
-from .types import FIELD_MAPPING, get_annotation_type
+from .types import FIELD_MAPPING, get_annotation_type, is_nullable
 
 
 SCHEMA_TEMPLATE: str = "CREATE TABLE IF NOT EXISTS {tablename} (\n{fields}\n);"
@@ -69,7 +69,6 @@ def make_field_schema(name: str, field: FieldInfo) -> dict:
 
             if auto and T in AUTOFIELDS:
                 schema += AUTOFIELDS[T]
-                field.default = None
 
             elif auto:
                 raise autoerror
@@ -87,7 +86,7 @@ def make_field_schema(name: str, field: FieldInfo) -> dict:
                 schema += f" DEFAULT {default}"
             elif T is bytes:
                 schema += f" DEFAULT (X'{default.hex()}')"
-        elif field.is_required():
+        elif field.is_required() and not is_nullable(field.annotation):
             schema += " NOT NULL"
         if unique:
             schema += " UNIQUE"

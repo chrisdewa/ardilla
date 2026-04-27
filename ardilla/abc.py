@@ -128,7 +128,7 @@ class BaseCrud(ABC):
         data = {k: v for k, v in zip(keys, vals)}
 
         obj = self.Model(**data)
-        obj.__rowid__ = rowid
+        object.__setattr__(obj, '__rowid__', rowid)
         return obj
 
     # Create

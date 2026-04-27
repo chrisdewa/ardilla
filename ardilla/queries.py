@@ -138,7 +138,7 @@ def for_save_many(objs: tuple[M]) -> tuple[str, tuple[Any, ...]]:
     """
     if not objs:
         raise BadQueryError("To save many, you have to at least past one object")
-    cols = tuple(objs[0].model_fields)
+    cols = tuple(type(objs[0]).model_fields)
     tablename = objs[0].__tablename__
     placeholders = ", ".join("?" * len(cols))
     q = f'INSERT OR REPLACE INTO {tablename} ({", ".join(cols)}) VALUES ({placeholders});'
