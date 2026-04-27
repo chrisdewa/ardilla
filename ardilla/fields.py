@@ -2,8 +2,10 @@ from typing import Any
 from pydantic import Field as _PydanticField
 
 
-_ARDILLA_KEYS = {'pk', 'primary', 'primary_key', 'auto', 'unique',
-                 'references', 'fk', 'on_delete', 'on_update'}
+_PK_KEYS: frozenset[str] = frozenset({'pk', 'primary', 'primary_key'})
+# tuple — order matters when unpacking FK metadata from json_schema_extra
+_FK_KEYS: tuple[str, ...] = ('references', 'fk', 'on_delete', 'on_update')
+_ARDILLA_KEYS: frozenset[str] = _PK_KEYS | {'auto', 'unique'} | set(_FK_KEYS)
 
 
 def Field(

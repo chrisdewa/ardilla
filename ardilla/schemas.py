@@ -9,6 +9,7 @@ from pydantic.fields import FieldInfo
 from pydantic_core import PydanticUndefined
 
 from .errors import ModelIntegrityError
+from .fields import _FK_KEYS, _PK_KEYS
 from .types import FIELD_MAPPING, get_annotation_type, is_nullable
 
 
@@ -57,11 +58,10 @@ def make_field_schema(name: str, field: FieldInfo) -> dict:
     )
     schema = f"{name} {FIELD_MAPPING[T]}"
 
-    primary_field_keys = {"pk", "primary", "primary_key"}
-    if len(extra.keys() & primary_field_keys) > 1:
+    if len(extra.keys() & _PK_KEYS) > 1:
         raise ModelIntegrityError(f'Multiple keywords for a primary field in "{name}"')
 
-    for k in primary_field_keys:
+    for k in _PK_KEYS:
         if k in extra and extra[k]:
             is_pk = True
 
@@ -93,7 +93,7 @@ def make_field_schema(name: str, field: FieldInfo) -> dict:
 
     if extra.get("references"):
         references, fk, on_delete, on_update = (
-            extra.get(f) for f in ["references", "fk", "on_delete", "on_update"]
+            extra.get(f) for f in _FK_KEYS
         )
         constraint = (
             f"FOREIGN KEY ({name}) "
