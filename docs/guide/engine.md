@@ -20,7 +20,7 @@ The engine manages the connections and cursors for the crud methods.
 The engine has the following parameters:
 
 - path: A pathlike that points to the location of the database
-- enable_foreing_keys: If true the engine will set `PRAGMA foreign_keys = ON;` in every connection.
+- enable_foreign_keys: If true the engine will set `PRAGMA foreign_keys = ON;` in every connection.
 
 ```py
 from ardilla import Engine

@@ -2,5 +2,5 @@
 ::: ardilla.models.Model
 
 # Fields
-
-::: ardilla.fields._ForeignFieldMaker
+::: ardilla.fields.Field
+::: ardilla.fields.ForeignField

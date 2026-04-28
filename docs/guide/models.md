@@ -2,15 +2,15 @@
 
 ## Basics
 
-`ardilla.Model` inherits directly from `pydantic.BaseModel` and adds most of the added functionality through the `Model.__init_subclass__` method. 
+`ardilla.Model` inherits directly from `pydantic.BaseModel` and adds most of the added functionality through the `Model.__pydantic_init_subclass__` hook (a Pydantic v2 lifecycle method called whenever `Model` is subclassed).
 
-On subclassing, the `Model` will grab the fields and private attributes and populate three private attributes:
+On subclassing, the `Model` will inspect its fields and populate three class variables:
 
 - `__schema__`: The SQLite table schema for the model.
-- `__pk__`: The private key column name if any.
+- `__pk__`: The primary key column name if any.
 - `__tablename__`: The name of the table
 
-The user can set these fields by themselves to provide additional of special configurations Ardilla might not do on its own.
+You can set any of these class variables yourself to override what Ardilla generates automatically.
 
 To create a basic table you only need a single field and its type annotations.
 
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS user(
 ## Customize table name
 
 By default the generated tablename is just the lowercase name of the model.
-you can edit the tablename by setting yourself this private attribute
+you can override the tablename by setting the class variable yourself
 
 ```py
 from ardilla import Model
