@@ -1,11 +1,14 @@
-from typing import Any
-from pydantic import Field as _PydanticField
+from __future__ import annotations
 
+from typing import TYPE_CHECKING
+from pydantic import Field as _PydanticField
+from pydantic.fields import FieldInfo
+
+if TYPE_CHECKING:
+    from ardilla.models import Model
 
 _PK_KEYS: frozenset[str] = frozenset({'pk', 'primary', 'primary_key'})
-# tuple — order matters when unpacking FK metadata from json_schema_extra
-_FK_KEYS: tuple[str, ...] = ('references', 'fk', 'on_delete', 'on_update')
-_ARDILLA_KEYS: frozenset[str] = _PK_KEYS | {'auto', 'unique'} | set(_FK_KEYS)
+_ARDILLA_KEYS: frozenset[str] = _PK_KEYS | {'auto', 'unique'}
 
 
 def Field(
@@ -17,7 +20,7 @@ def Field(
     auto: bool = False,
     unique: bool = False,
     **kwargs,
-) -> Any:
+) -> FieldInfo:
     """pydantic Field extended with ardilla schema metadata.
 
     Ardilla-specific kwargs are stored in json_schema_extra so pydantic v2
@@ -45,63 +48,55 @@ def Field(
     return _PydanticField(default, **kwargs)
 
 
-class _ForeignFieldMaker:
+class ForeignField(FieldInfo):
     """
-    Helper class to generate foreign key field constraints.
-
-    Use the pre-instantiated `ardilla.fields.ForeignField` rather than
-    instantiating this class directly.
+    FieldInfo subclass for foreign key columns.
+    Inherits from pydantic.fields.FieldInfo.
 
     Attributes:
-        NO_ACTION: The database won't take action.
-        RESTRICT: Prevents deletion while child rows exist.
-        SET_NULL: Sets child FK to NULL on parent delete.
-        SET_DEFAULT: Resets child FK to its default on parent delete/update.
-        CASCADE: Propagates delete/update from parent to children.
+        references (type[Model]): The Model subclass this FK points to.
+        on_delete (str): Action when the referenced row is deleted. Defaults to NO_ACTION.
+        on_update (str): Action when the referenced row is updated. Defaults to NO_ACTION.
+        NO_ACTION (str): The database won't take action.
+        RESTRICT (str): Prevents deletion while child rows exist.
+        SET_NULL (str): Sets child FK to NULL on parent delete/update.
+        SET_DEFAULT (str): Resets child FK to its default on parent delete/update.
+        CASCADE (str): Propagates delete/update from parent to children.
+
+    Example:
+        ```py
+        from ardilla import Model, Field, ForeignField
+
+        class Post(Model):
+            id: int = Field(primary=True)
+
+        class Comment(Model):
+            post_id: int = ForeignField(references=Post, on_delete=ForeignField.CASCADE)
+        ```
     """
+
     NO_ACTION = 'NO ACTION'
     RESTRICT = 'RESTRICT'
     SET_NULL = 'SET NULL'
     SET_DEFAULT = 'SET DEFAULT'
     CASCADE = 'CASCADE'
 
-    def __call__(
+    def __init__(
         self,
         *,
-        references: type,
+        references: 'type[Model]',
         on_delete: str = NO_ACTION,
         on_update: str = NO_ACTION,
-        **kws,
-    ) -> Any:
-        """
-        Args:
-            references: The Model subclass this foreign key points to.
-            on_delete: Action when the referenced row is deleted. Defaults to 'NO ACTION'.
-            on_update: Action when the referenced row is updated. Defaults to 'NO ACTION'.
-        Returns:
-            A pydantic Field with FK metadata in json_schema_extra.
-        Raises:
-            TypeError: if references is not a subclass of ardilla.Model.
-            ValueError: if the referenced model has no primary key.
-        """
-        from ardilla.models import Model
+        **kwargs,
+    ) -> None:
+        from ardilla.models import Model  # avoid circular import
         if not issubclass(references, Model):
             raise TypeError('The referenced type must be a subclass of ardilla.Model')
-        fk = getattr(references, '__pk__', None)
-        tablename = getattr(references, '__tablename__')
-
-        if not fk:
+        if not getattr(references, '__pk__', None):
             raise ValueError('The referenced model requires a primary key')
 
-        extra = {
-            'references': tablename,
-            'fk': fk,
-            'on_delete': on_delete,
-            'on_update': on_update,
-        }
-        existing = kws.pop('json_schema_extra', {}) or {}
-        kws['json_schema_extra'] = {**existing, **extra}
-        return _PydanticField(**kws)
+        self.references = references
+        self.on_delete = on_delete
+        self.on_update = on_update
 
-
-ForeignField = _ForeignFieldMaker()
+        super().__init__(**kwargs)

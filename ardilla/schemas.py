@@ -9,7 +9,7 @@ from pydantic.fields import FieldInfo
 from pydantic_core import PydanticUndefined
 
 from .errors import ModelIntegrityError
-from .fields import _FK_KEYS, _PK_KEYS
+from .fields import ForeignField, _PK_KEYS
 from .types import FIELD_MAPPING, get_annotation_type, is_nullable
 
 
@@ -91,15 +91,12 @@ def make_field_schema(name: str, field: FieldInfo) -> dict:
         if unique:
             schema += " UNIQUE"
 
-    if extra.get("references"):
-        references, fk, on_delete, on_update = (
-            extra.get(f) for f in _FK_KEYS
-        )
+    if isinstance(field, ForeignField):
         constraint = (
             f"FOREIGN KEY ({name}) "
-            f"REFERENCES {references}({fk}) "
-            f"ON UPDATE {on_update} "
-            f"ON DELETE {on_delete}"
+            f"REFERENCES {field.references.__tablename__}({field.references.__pk__}) "
+            f"ON UPDATE {field.on_update} "
+            f"ON DELETE {field.on_delete}"
         )
 
     output.update({"pk": is_pk, "schema": schema, "constraint": constraint})
