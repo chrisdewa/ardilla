@@ -3,16 +3,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from pydantic import Field as _PydanticField
 from pydantic.fields import FieldInfo
+from pydantic_core import PydanticUndefined
 
 if TYPE_CHECKING:
     from ardilla.models import Model
 
 _PK_KEYS: frozenset[str] = frozenset({'pk', 'primary', 'primary_key'})
-_ARDILLA_KEYS: frozenset[str] = _PK_KEYS | {'auto', 'unique'}
 
 
 def Field(
-    default=...,
+    default=PydanticUndefined,
     *,
     pk: bool = False,
     primary: bool = False,
@@ -21,25 +21,40 @@ def Field(
     unique: bool = False,
     **kwargs,
 ) -> FieldInfo:
-    """pydantic Field extended with ardilla schema metadata.
+    """Pydantic Field extended with ardilla schema metadata.
 
-    Ardilla-specific kwargs are stored in json_schema_extra so pydantic v2
-    sees them without deprecation warnings. Fields marked auto=True get
-    default=None so instances can be constructed without supplying the value.
+    Args:
+        default: Default value for the field. Omit (or pass ``...``) to mark
+            the field as required. Fields with ``auto=True`` default to ``None``
+            unless an explicit default is provided.
+        pk: Mark this field as the primary key (alias for ``primary_key``).
+        primary: Mark this field as the primary key (alias for ``primary_key``).
+        primary_key: Mark this field as the primary key.
+        auto: Exclude this field from INSERT statements so the database
+            populates it automatically (e.g. AUTOINCREMENT, DEFAULT).
+        unique: Add a UNIQUE constraint to this column.
+        **kwargs: Forwarded verbatim to :func:`pydantic.Field`.
+
+    Returns:
+        A :class:`pydantic.fields.FieldInfo` with ardilla metadata stored in
+        ``json_schema_extra``.
+
+    Example:
+        ```py
+        from ardilla import Model, Field
+
+        class User(Model):
+            id: int = Field(pk=True, auto=True)
+            name: str = Field(unique=True)
+        ```
     """
-    extra: dict = {}
-    if pk:
-        extra['pk'] = True
-    if primary:
-        extra['primary'] = True
-    if primary_key:
-        extra['primary_key'] = True
+    flags = {'pk': pk, 'primary': primary, 'primary_key': primary_key, 'unique': unique}
+    extra = {name: True for name, val in flags.items() if val}
+
     if auto:
         extra['auto'] = True
-        if default is ...:
+        if default is PydanticUndefined or default is ...:
             default = None
-    if unique:
-        extra['unique'] = True
 
     if extra:
         existing = kwargs.pop('json_schema_extra', {}) or {}
