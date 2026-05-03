@@ -4,6 +4,9 @@ from functools import partial
 
 import pytest
 
+from datetime import date, time
+from typing import Optional
+
 from ardilla import Engine, Model, Field
 from ardilla.errors import BadQueryError, QueryExecutionError, DisconnectedEngine
 from ardilla.fields import ForeignField
@@ -89,6 +92,15 @@ def test_insert_or_ignore():
         assert u2 is None
 
 
+def test_insert_or_ignore_original_unchanged():
+    with cleanup(), Engine(db) as engine:
+        crud = engine.crud(User)
+        original = crud.insert(name="alice")
+        crud.insert_or_ignore(id=original.id, name="overwrite")
+        fetched = crud.get_or_none(id=original.id)
+        assert fetched.name == "alice"
+
+
 def test_save_one():
     with cleanup(), Engine(db) as engine:
         crud = engine.crud(User)
@@ -164,6 +176,16 @@ def test_get_many_limit():
         assert len(users) == 3
 
 
+def test_get_many_order_by_and_limit():
+    with cleanup(), Engine(db) as engine:
+        crud = engine.crud(User)
+        for n in range(10):
+            crud.insert(name=f"user {n}")
+        results = crud.get_many(order_by={"id": "DESC"}, limit=3)
+        assert len(results) == 3
+        assert results[0].id > results[1].id > results[2].id
+
+
 def test_get_or_create():
     with cleanup(), Engine(db) as engine:
         crud = engine.crud(User)
@@ -173,6 +195,18 @@ def test_get_or_create():
         chris, created = crud.get_or_create(name="chris")
         assert chris.id == 1
         assert created is False
+
+
+def test_get_or_create_returns_correct_values():
+    with cleanup(), Engine(db) as engine:
+        crud = engine.crud(User)
+        obj, created = crud.get_or_create(name="zeus")
+        assert created is True
+        assert obj.name == "zeus"
+        obj2, created2 = crud.get_or_create(name="zeus")
+        assert created2 is False
+        assert obj2.name == "zeus"
+        assert obj2.id == obj.id
 
 
 def test_get_or_none():
@@ -198,6 +232,23 @@ def test_count_column():
             crud.insert(name=f"user {n}")
         assert crud.count("id") == 5
         assert crud.count("name") == 5
+
+
+def test_count_with_filter():
+    with cleanup(), Engine(db) as engine:
+        crud = engine.crud(User)
+        for name in ["alice", "alice", "bob"]:
+            crud.insert(name=name)
+        assert crud.count(name="alice") == 2
+        assert crud.count(name="bob") == 1
+
+
+def test_count_column_with_filter():
+    with cleanup(), Engine(db) as engine:
+        crud = engine.crud(User)
+        for name in ["alice", "alice", "bob"]:
+            crud.insert(name=name)
+        assert crud.count("id", name="alice") == 2
 
 
 def test_invalid_query_kwarg():
@@ -258,6 +309,39 @@ def test_delete_many():
         assert len(remaining) == 1
 
 
+def test_save_many_empty_raises():
+    with cleanup(), Engine(db) as engine:
+        crud = engine.crud(User)
+        with pytest.raises(BadQueryError):
+            crud.save_many()
+
+
+def test_delete_many_empty_raises():
+    with cleanup(), Engine(db) as engine:
+        crud = engine.crud(User)
+        with pytest.raises(IndexError):
+            crud.delete_many()
+
+
+def test_delete_many_non_id_pk():
+    """Regression: for_delete_many must use the actual pk column, not the hardcoded 'id'."""
+    class Article(Model):
+        slug: str = Field(pk=True)
+        title: str
+
+    db_article = path / "test_articles.sqlite"
+    db_article.unlink(missing_ok=True)
+    try:
+        with Engine(db_article) as engine:
+            crud = engine.crud(Article)
+            a1 = crud.insert(slug="hello", title="Hello World")
+            a2 = crud.insert(slug="world", title="World Post")
+            crud.delete_many(a1, a2)
+            assert crud.count() == 0
+    finally:
+        db_article.unlink(missing_ok=True)
+
+
 # ---------------------------------------------------------------------------
 # Foreign keys
 # ---------------------------------------------------------------------------
@@ -292,3 +376,108 @@ def test_foreign_keys():
 
     engine.close()
     db_fk.unlink(missing_ok=True)
+
+
+def test_foreign_keys_restrict():
+    """RESTRICT prevents deleting a parent row when child rows reference it."""
+    db_fk = path / "sync_restrict.sqlite"
+    db_fk.unlink(missing_ok=True)
+    engine = Engine(db_fk, enable_foreing_keys=True)
+    engine.connect()
+
+    class Category(Model):
+        id: int = Field(pk=True, auto=True)
+        name: str
+
+    class Item(Model):
+        id: int = Field(pk=True, auto=True)
+        name: str
+        category_id: int = ForeignField(references=Category, on_delete=ForeignField.RESTRICT)
+
+    ccrud = engine.crud(Category)
+    icrud = engine.crud(Item)
+
+    cat = ccrud.insert(name="electronics")
+    icrud.insert(name="phone", category_id=cat.id)
+
+    with pytest.raises(Exception):
+        ccrud.delete_one(cat)
+
+    assert icrud.count() == 1
+
+    engine.close()
+    db_fk.unlink(missing_ok=True)
+
+
+def test_foreign_keys_set_null():
+    """SET_NULL nulls the FK column on the child when the parent is deleted."""
+    db_fk = path / "sync_set_null.sqlite"
+    db_fk.unlink(missing_ok=True)
+    engine = Engine(db_fk, enable_foreing_keys=True)
+    engine.connect()
+
+    class Team(Model):
+        id: int = Field(pk=True, auto=True)
+        name: str
+
+    class Player(Model):
+        id: int = Field(pk=True, auto=True)
+        name: str
+        team_id: Optional[int] = ForeignField(references=Team, on_delete=ForeignField.SET_NULL)
+
+    tcrud = engine.crud(Team)
+    pcrud = engine.crud(Player)
+
+    team = tcrud.insert(name="red")
+    pcrud.insert(name="alice", team_id=team.id)
+
+    tcrud.delete_one(team)
+
+    player = pcrud.get_or_none(name="alice")
+    assert player is not None
+    assert player.team_id is None
+
+    engine.close()
+    db_fk.unlink(missing_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# Type round-trips
+# ---------------------------------------------------------------------------
+
+def test_type_roundtrip():
+    """bool, float, bytes, date, and time values survive a write/read cycle."""
+    class TypeModel(Model):
+        id: int = Field(pk=True, auto=True)
+        flag: bool
+        score: float
+        blob: bytes
+        born: date
+        alarm: time
+
+    db_types = path / "test_types.sqlite"
+    db_types.unlink(missing_ok=True)
+    try:
+        with Engine(db_types) as engine:
+            crud = engine.crud(TypeModel)
+            obj = crud.insert(
+                flag=True,
+                score=3.14,
+                blob=b"\x00\xff",
+                born=date(1990, 5, 20),
+                alarm=time(8, 0, 0),
+            )
+            assert obj.flag is True
+            assert obj.score == pytest.approx(3.14)
+            assert obj.blob == b"\x00\xff"
+            assert obj.born == date(1990, 5, 20)
+            assert obj.alarm == time(8, 0, 0)
+
+            fetched = crud.get_or_none(id=obj.id)
+            assert fetched.flag is True
+            assert fetched.score == pytest.approx(3.14)
+            assert fetched.blob == b"\x00\xff"
+            assert fetched.born == date(1990, 5, 20)
+            assert fetched.alarm == time(8, 0, 0)
+    finally:
+        db_types.unlink(missing_ok=True)

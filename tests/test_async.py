@@ -4,6 +4,9 @@ from functools import partial
 
 import pytest
 
+from datetime import date, time
+from typing import Optional
+
 from ardilla import Model, Field, ForeignField
 from ardilla.asyncio import Engine
 from ardilla.errors import BadQueryError, QueryExecutionError, DisconnectedEngine
@@ -94,6 +97,16 @@ async def test_insert_or_ignore():
 
 
 @pytest.mark.asyncio
+async def test_insert_or_ignore_original_unchanged():
+    async with cleanup(), Engine(db) as engine:
+        crud = await engine.crud(User)
+        original = await crud.insert(name="alice")
+        await crud.insert_or_ignore(id=original.id, name="overwrite")
+        fetched = await crud.get_or_none(id=original.id)
+        assert fetched.name == "alice"
+
+
+@pytest.mark.asyncio
 async def test_save_one():
     async with cleanup(), Engine(db) as engine:
         crud = await engine.crud(User)
@@ -176,6 +189,17 @@ async def test_get_many_limit():
 
 
 @pytest.mark.asyncio
+async def test_get_many_order_by_and_limit():
+    async with cleanup(), Engine(db) as engine:
+        crud = await engine.crud(User)
+        for n in range(10):
+            await crud.insert(name=f"user {n}")
+        results = await crud.get_many(order_by={"id": "DESC"}, limit=3)
+        assert len(results) == 3
+        assert results[0].id > results[1].id > results[2].id
+
+
+@pytest.mark.asyncio
 async def test_get_or_create():
     async with cleanup(), Engine(db) as engine:
         crud = await engine.crud(User)
@@ -185,6 +209,19 @@ async def test_get_or_create():
         chris, created = await crud.get_or_create(name="chris")
         assert chris.id == 1
         assert created is False
+
+
+@pytest.mark.asyncio
+async def test_get_or_create_returns_correct_values():
+    async with cleanup(), Engine(db) as engine:
+        crud = await engine.crud(User)
+        obj, created = await crud.get_or_create(name="zeus")
+        assert created is True
+        assert obj.name == "zeus"
+        obj2, created2 = await crud.get_or_create(name="zeus")
+        assert created2 is False
+        assert obj2.name == "zeus"
+        assert obj2.id == obj.id
 
 
 @pytest.mark.asyncio
@@ -213,6 +250,25 @@ async def test_count_column():
             await crud.insert(name=f"user {n}")
         assert await crud.count("id") == 5
         assert await crud.count("name") == 5
+
+
+@pytest.mark.asyncio
+async def test_count_with_filter():
+    async with cleanup(), Engine(db) as engine:
+        crud = await engine.crud(User)
+        for name in ["alice", "alice", "bob"]:
+            await crud.insert(name=name)
+        assert await crud.count(name="alice") == 2
+        assert await crud.count(name="bob") == 1
+
+
+@pytest.mark.asyncio
+async def test_count_column_with_filter():
+    async with cleanup(), Engine(db) as engine:
+        crud = await engine.crud(User)
+        for name in ["alice", "alice", "bob"]:
+            await crud.insert(name=name)
+        assert await crud.count("id", name="alice") == 2
 
 
 @pytest.mark.asyncio
@@ -276,6 +332,42 @@ async def test_delete_many():
         assert await crud.count() == 1
 
 
+@pytest.mark.asyncio
+async def test_save_many_empty_raises():
+    async with cleanup(), Engine(db) as engine:
+        crud = await engine.crud(User)
+        with pytest.raises(BadQueryError):
+            await crud.save_many()
+
+
+@pytest.mark.asyncio
+async def test_delete_many_empty_raises():
+    async with cleanup(), Engine(db) as engine:
+        crud = await engine.crud(User)
+        with pytest.raises(IndexError):
+            await crud.delete_many()
+
+
+@pytest.mark.asyncio
+async def test_delete_many_non_id_pk():
+    """Regression: for_delete_many must use the actual pk column, not the hardcoded 'id'."""
+    class Article(Model):
+        slug: str = Field(pk=True)
+        title: str
+
+    db_article = path / "test_articles_async.sqlite"
+    db_article.unlink(missing_ok=True)
+    try:
+        async with Engine(db_article) as engine:
+            crud = await engine.crud(Article)
+            a1 = await crud.insert(slug="hello", title="Hello World")
+            a2 = await crud.insert(slug="world", title="World Post")
+            await crud.delete_many(a1, a2)
+            assert await crud.count() == 0
+    finally:
+        db_article.unlink(missing_ok=True)
+
+
 # ---------------------------------------------------------------------------
 # Foreign keys
 # ---------------------------------------------------------------------------
@@ -311,3 +403,111 @@ async def test_foreign_keys():
 
     await engine.close()
     db_fk.unlink(missing_ok=True)
+
+
+@pytest.mark.asyncio
+async def test_foreign_keys_restrict():
+    """RESTRICT prevents deleting a parent row when child rows reference it."""
+    db_fk = path / "async_restrict.sqlite"
+    db_fk.unlink(missing_ok=True)
+    engine = Engine(db_fk, enable_foreing_keys=True)
+    await engine.connect()
+
+    class Category(Model):
+        id: int = Field(pk=True, auto=True)
+        name: str
+
+    class Item(Model):
+        id: int = Field(pk=True, auto=True)
+        name: str
+        category_id: int = ForeignField(references=Category, on_delete=ForeignField.RESTRICT)
+
+    ccrud = await engine.crud(Category)
+    icrud = await engine.crud(Item)
+
+    cat = await ccrud.insert(name="electronics")
+    await icrud.insert(name="phone", category_id=cat.id)
+
+    with pytest.raises(Exception):
+        await ccrud.delete_one(cat)
+
+    assert await icrud.count() == 1
+
+    await engine.close()
+    db_fk.unlink(missing_ok=True)
+
+
+@pytest.mark.asyncio
+async def test_foreign_keys_set_null():
+    """SET_NULL nulls the FK column on the child when the parent is deleted."""
+    db_fk = path / "async_set_null.sqlite"
+    db_fk.unlink(missing_ok=True)
+    engine = Engine(db_fk, enable_foreing_keys=True)
+    await engine.connect()
+
+    class Team(Model):
+        id: int = Field(pk=True, auto=True)
+        name: str
+
+    class Player(Model):
+        id: int = Field(pk=True, auto=True)
+        name: str
+        team_id: Optional[int] = ForeignField(references=Team, on_delete=ForeignField.SET_NULL)
+
+    tcrud = await engine.crud(Team)
+    pcrud = await engine.crud(Player)
+
+    team = await tcrud.insert(name="red")
+    await pcrud.insert(name="alice", team_id=team.id)
+
+    await tcrud.delete_one(team)
+
+    player = await pcrud.get_or_none(name="alice")
+    assert player is not None
+    assert player.team_id is None
+
+    await engine.close()
+    db_fk.unlink(missing_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# Type round-trips
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_type_roundtrip():
+    """bool, float, bytes, date, and time values survive a write/read cycle."""
+    class TypeModel(Model):
+        id: int = Field(pk=True, auto=True)
+        flag: bool
+        score: float
+        blob: bytes
+        born: date
+        alarm: time
+
+    db_types = path / "test_types_async.sqlite"
+    db_types.unlink(missing_ok=True)
+    try:
+        async with Engine(db_types) as engine:
+            crud = await engine.crud(TypeModel)
+            obj = await crud.insert(
+                flag=True,
+                score=3.14,
+                blob=b"\x00\xff",
+                born=date(1990, 5, 20),
+                alarm=time(8, 0, 0),
+            )
+            assert obj.flag is True
+            assert obj.score == pytest.approx(3.14)
+            assert obj.blob == b"\x00\xff"
+            assert obj.born == date(1990, 5, 20)
+            assert obj.alarm == time(8, 0, 0)
+
+            fetched = await crud.get_or_none(id=obj.id)
+            assert fetched.flag is True
+            assert fetched.score == pytest.approx(3.14)
+            assert fetched.blob == b"\x00\xff"
+            assert fetched.born == date(1990, 5, 20)
+            assert fetched.alarm == time(8, 0, 0)
+    finally:
+        db_types.unlink(missing_ok=True)

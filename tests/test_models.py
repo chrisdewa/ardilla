@@ -1,6 +1,6 @@
 import sqlite3
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, date, time
 
 import pytest
 
@@ -167,3 +167,55 @@ def test_foreign_field_no_pk_error():
 
     with pytest.raises(ValueError):
         ForeignField(references=NoPk)
+
+
+# ---------------------------------------------------------------------------
+# SQLite type mapping in schema
+# ---------------------------------------------------------------------------
+
+def test_bool_schema():
+    class Flags(Model):
+        id: int = Field(pk=True)
+        active: bool
+
+    assert "active INTEGER NOT NULL" in Flags.__schema__
+
+
+def test_float_schema():
+    class Scores(Model):
+        id: int = Field(pk=True)
+        value: float
+
+    assert "value REAL NOT NULL" in Scores.__schema__
+
+
+def test_date_schema():
+    class Events(Model):
+        id: int = Field(pk=True)
+        event_date: date
+
+    assert "event_date DATE NOT NULL" in Events.__schema__
+
+
+def test_time_schema():
+    class Schedules(Model):
+        id: int = Field(pk=True)
+        start_time: time
+
+    assert "start_time TIME NOT NULL" in Schedules.__schema__
+
+
+def test_auto_date_schema():
+    class Log(Model):
+        id: int = Field(pk=True, auto=True)
+        logged_on: date = Field(auto=True)
+
+    assert "logged_on DATE DEFAULT CURRENT_DATE" in Log.__schema__
+
+
+def test_auto_time_schema():
+    class Log(Model):
+        id: int = Field(pk=True, auto=True)
+        logged_at: time = Field(auto=True)
+
+    assert "logged_at TIME DEFAULT CURRENT_TIME" in Log.__schema__
