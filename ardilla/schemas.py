@@ -1,6 +1,7 @@
 """
 variables and functions here are used to generate and work with the Model's schemas
 """
+
 import re
 from typing import Optional, Union
 from datetime import datetime, date, time
@@ -11,7 +12,6 @@ from pydantic_core import PydanticUndefined
 from .errors import ModelIntegrityError
 from .fields import ForeignField, _PK_KEYS
 from .types import FIELD_MAPPING, get_annotation_type, is_nullable
-
 
 SCHEMA_TEMPLATE: str = "CREATE TABLE IF NOT EXISTS {tablename} (\n{fields}\n);"
 
@@ -118,10 +118,12 @@ def make_table_schema(Model: type[BaseModel]) -> str:
             pk = name
         fields.append(field_schema["schema"])
 
-        constrains.append(field_schema["constraint"]) if field_schema[
-            "constraint"
-        ] else None
-    
+        (
+            constrains.append(field_schema["constraint"])
+            if field_schema["constraint"]
+            else None
+        )
+
     schema = (
         f"CREATE TABLE IF NOT EXISTS {tablename}(\n"
         + ",\n".join(f"\r    {f}" for f in (fields + constrains))

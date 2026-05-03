@@ -6,13 +6,12 @@ from .errors import MigrationError
 from .schemas import make_field_schema, make_table_schema
 
 
-
 def generate_migration_script(
     old: type[Model],
     new: type[Model],
     *,
     original_tablename: str,
-    new_tablename: Optional[str] = None
+    new_tablename: Optional[str] = None,
 ) -> str:
     """_summary_
 
@@ -29,14 +28,12 @@ def generate_migration_script(
 
     Returns:
         str: The migration script. Execute it with an sqlite3 connection
-    """      
+    """
     scripts = []
 
     if new_tablename is not None:
-        scripts.append(
-            f"ALTER TABLE {original_tablename} RENAME TO {new_tablename};"
-        )
-    
+        scripts.append(f"ALTER TABLE {original_tablename} RENAME TO {new_tablename};")
+
     tablename = original_tablename if not new_tablename else new_tablename
 
     old_fields = set(old.model_fields)
@@ -74,7 +71,7 @@ def generate_migration_script(
         new_schema = make_field_schema(f, new.model_fields[f])
         if old_schema != new_schema:
             alter_fields = True
-            
+
             # if old.model_fields[f].type_ != new.model_fields[f].type_:
             #     print(
             #         f"Ardilla can't handle type changes for now. "
@@ -85,9 +82,9 @@ def generate_migration_script(
 
     if alter_fields is True:
         new_table_schema = make_table_schema(new)
-        cols = ', '.join(name for name in new.model_fields)
+        cols = ", ".join(name for name in new.model_fields)
 
-        script = f'''
+        script = f"""
         \rALTER TABLE {tablename} RENAME TO _{tablename};
         \r
         \r{new_table_schema}
@@ -97,10 +94,8 @@ def generate_migration_script(
         \r  FROM _{tablename};
         \r
         \rDROP TABLE _{tablename};
-        \r'''
+        \r"""
 
         scripts.append(script)
-        
 
     return "\n\n".join(scripts)
-

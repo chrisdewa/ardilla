@@ -9,7 +9,7 @@ from .models import M, Model as BaseModel
 E = TypeVar("E")  # Engine Type
 
 Connection = TypeVar("Connection")
-CrudType = TypeVar('CrudType', bound='BaseCrud')
+CrudType = TypeVar("CrudType", bound="BaseCrud")
 
 
 class BaseEngine(ABC):
@@ -20,10 +20,10 @@ class BaseEngine(ABC):
         "schemas",  # the registered tables
         "tables_created",  # a list of tables that were setup
         "enable_foreing_keys",  # a bool to specify if the pragma should be enforced
-        "con", # sync connection
-        "_cruds", # crud cache
+        "con",  # sync connection
+        "_cruds",  # crud cache
     )
-    
+
     def check_connection(self) -> bool:
         """Checks if the engine's connection is alive
         works for both the sync and async classes
@@ -31,14 +31,14 @@ class BaseEngine(ABC):
         Returns:
             bool: if the connection is fine
         """
-        con: Union[Connection, None] = getattr(self, 'con', None)
+        con: Union[Connection, None] = getattr(self, "con", None)
         try:
             if isinstance(con, sqlite3.Connection):
                 con.cursor()
                 return True
             elif con is not None:
                 # should be aiosqlite
-                # we don't import it here to prevent import errors 
+                # we don't import it here to prevent import errors
                 # in case there's missing dependency of aiosqlite
                 return con._running and con._connection
             else:
@@ -56,22 +56,18 @@ class BaseEngine(ABC):
         self.tables_created: set[str] = set()
         self._cruds: dict[type[M], CrudType] = {}
         self.enable_foreing_keys = enable_foreing_keys
-    
-    @abstractmethod
-    def get_connection(self) -> Connection:
-        ...
-        
-    @abstractmethod
-    def connect(self) -> Connection:
-        ...
-        
-    @abstractmethod
-    def close(self) -> None:
-        ...
 
     @abstractmethod
-    def crud(self, Model: type[M]) -> CrudType:
-        ...
+    def get_connection(self) -> Connection: ...
+
+    @abstractmethod
+    def connect(self) -> Connection: ...
+
+    @abstractmethod
+    def close(self) -> None: ...
+
+    @abstractmethod
+    def crud(self, Model: type[M]) -> CrudType: ...
 
 
 class BaseCrud(ABC):
@@ -128,26 +124,22 @@ class BaseCrud(ABC):
         data = {k: v for k, v in zip(keys, vals)}
 
         obj = self.Model(**data)
-        object.__setattr__(obj, '__rowid__', rowid)
+        object.__setattr__(obj, "__rowid__", rowid)
         return obj
 
     # Create
     @abstractmethod
-    def _do_insert(self, ignore: bool = False, returning: bool = True, /, **kws):
-        ...
+    def _do_insert(self, ignore: bool = False, returning: bool = True, /, **kws): ...
 
     @abstractmethod
-    def insert(self, **kws):
-        ...
+    def insert(self, **kws): ...
 
     @abstractmethod
-    def insert_or_ignore(self):
-        ...
+    def insert_or_ignore(self): ...
 
     # Read
     @abstractmethod
-    def get_all(self) -> list[M]:
-        ...
+    def get_all(self) -> list[M]: ...
 
     @abstractmethod
     def get_many(
@@ -155,35 +147,27 @@ class BaseCrud(ABC):
         order_by: Optional[dict[str, str]] = None,
         limit: Optional[int] = None,
         **kws,
-    ) -> list[M]:
-        ...
+    ) -> list[M]: ...
 
     @abstractmethod
-    def get_or_create(self, **kws) -> tuple[M, bool]:
-        ...
+    def get_or_create(self, **kws) -> tuple[M, bool]: ...
 
     @abstractmethod
-    def get_or_none(self, **kws) -> Optional[M]:
-        ...
+    def get_or_none(self, **kws) -> Optional[M]: ...
 
     # Update
     @abstractmethod
-    def save_one(self, obj: M) -> Literal[True]:
-        ...
+    def save_one(self, obj: M) -> Literal[True]: ...
 
     @abstractmethod
-    def save_many(self, *objs: M) -> Literal[True]:
-        ...
+    def save_many(self, *objs: M) -> Literal[True]: ...
 
     # Delete
     @abstractmethod
-    def delete_one(self, obj: M) -> Literal[True]:
-        ...
+    def delete_one(self, obj: M) -> Literal[True]: ...
 
     @abstractmethod
-    def delete_many(self, *objs: M) -> Literal[True]:
-        ...
+    def delete_many(self, *objs: M) -> Literal[True]: ...
 
     @abstractmethod
-    def count(self, column: str = '*', /, **kws) -> int:
-        ...
+    def count(self, column: str = "*", /, **kws) -> int: ...

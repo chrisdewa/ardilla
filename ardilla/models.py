@@ -1,6 +1,7 @@
 """
 Contains the Model object and typing alias to work with the engines and Cruds
 """
+
 from typing import ClassVar, Optional, TypeVar, get_origin
 from pydantic import BaseModel
 
@@ -9,30 +10,30 @@ from .schemas import make_table_schema, get_tablename, get_pk
 from .errors import ModelIntegrityError
 
 
-
 class Model(BaseModel):
     """
     The base model representing SQLite tables
     Inherits directly from pydantic.BaseModel
-    
+
     Attributes:
-        __rowid__ (int | None): (class attribute) when an object is returned by a query it will 
+        __rowid__ (int | None): (class attribute) when an object is returned by a query it will
             contain the rowid field that can be used for update and deletion.
         __pk__ (str | None): (class attribute) Holds the primary key column name of the table
         __tablename__ (str): (class attribute) the name of the table in the database
         __schema__(str): the (class attribute) schema for the table.
-        
+
     Example:
         ```py
         from ardilla import Model, Field
         # Field is actually pydantic.Field but it's imported here for the convenience of the developer
-        
+
         class User(Model):
             __tablename__ = 'users' # by default the tablename is just the model's name in lowercase
             id: int = Field(primary=True) # sets this field as the primary key
             name: str
         ```
     """
+
     __rowid__: Optional[int] = None
     __pk__: ClassVar[Optional[str]]
     __tablename__: ClassVar[str]
@@ -48,20 +49,20 @@ class Model(BaseModel):
                     f'Field "{name}" of model "{cls.__name__}" is of unsupported type "{field.annotation}"'
                 )
 
-            if (
-                field.json_schema_extra 
-                and field.json_schema_extra.keys() 
-                    & {'primary', 'primary_key', 'pk'}
-            ):
-                if getattr(cls, '__pk__', None) not in {None, name}:
-                    raise ModelIntegrityError('More than one fields defined as primary')
-                
-                cls.__pk__ = name 
-                
+            if field.json_schema_extra and field.json_schema_extra.keys() & {
+                "primary",
+                "primary_key",
+                "pk",
+            }:
+                if getattr(cls, "__pk__", None) not in {None, name}:
+                    raise ModelIntegrityError("More than one fields defined as primary")
+
+                cls.__pk__ = name
+
         if not hasattr(cls, "__schema__"):
             cls.__schema__ = make_table_schema(cls)
-        
-        if not hasattr(cls, '__pk__'):
+
+        if not hasattr(cls, "__pk__"):
             cls.__pk__ = get_pk(cls.__schema__)
 
         if not hasattr(cls, "__tablename__"):

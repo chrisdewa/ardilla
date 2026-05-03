@@ -16,28 +16,29 @@ from .. import queries
 class ConnectionProxy:
     """A proxy class for aiosqlite.Connection that
     checks if the connections is alive before returning any of its attributes
-    
+
     Args:
         connection (aiosqlite.Connection)
     """
+
     def __init__(self, connection: aiosqlite.Connection):
         self._connection = connection
-    
+
     def __getattr__(self, __name: str) -> Any:
-        if __name in {'execute', 'commit'}:
+        if __name in {"execute", "commit"}:
             if not self._connection._running or not self._connection._connection:
-                raise DisconnectedEngine('The engine is disconnected')
+                raise DisconnectedEngine("The engine is disconnected")
         return getattr(self._connection, __name)
 
 
 class AsyncCrud(BaseCrud, Generic[M]):
     """Abstracts CRUD actions for model associated tables"""
+
     connection: aiosqlite.Connection
-    
+
     def __init__(self, Model: type[M], connection: aiosqlite.Connection) -> None:
         connection = ConnectionProxy(connection)
         super().__init__(Model, connection)
-
 
     async def _do_insert(
         self,
@@ -252,25 +253,25 @@ class AsyncCrud(BaseCrud, Generic[M]):
 
         await self.connection.execute(q, vals)
         await self.connection.commit()
-        
-    async def count(self, column: str = '*', /, **kws) -> int:
+
+    async def count(self, column: str = "*", /, **kws) -> int:
         """Returns an integer of the number of non null values in a column
         Or the total number of rows if '*' is passed
 
         Args:
-            column (str, optional): The column name to count rows on. 
+            column (str, optional): The column name to count rows on.
                 Defaults to '*' which counts all the rows in the table
 
         Returns:
             int: the number of rows with non null values in a column or the number of rows in a table
         """
         tablename = self.Model.__tablename__
-        if column not in self.Model.model_fields and column != '*':
+        if column not in self.Model.model_fields and column != "*":
             raise BadQueryError(f'"{column}" is not a field of the "{tablename}" table')
-        
+
         q, vals = queries.for_count(tablename, column, kws)
         async with self.connection.execute(q, vals) as cur:
-            row = await cur.fetchone()    
-            count = row['total_count']
-                
+            row = await cur.fetchone()
+            count = row["total_count"]
+
         return count

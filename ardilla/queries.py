@@ -1,7 +1,8 @@
 """
-Methods here are used by Crud classes to obtain the query 
+Methods here are used by Crud classes to obtain the query
 strings and variable tuples to pass to the connections and cursors
 """
+
 from typing import Any, Optional, Union
 from .errors import BadQueryError
 from .models import M
@@ -209,7 +210,9 @@ def for_delete_many(objs: tuple[M]) -> tuple[str, tuple[Any, ...]]:
     return q, vals
 
 
-def for_count(tablename: str, column: str = '*', kws: Optional[dict] = None) -> tuple[str, tuple]:
+def for_count(
+    tablename: str, column: str = "*", kws: Optional[dict] = None
+) -> tuple[str, tuple]:
     """Returns a query for counting the number of non null values in a column
 
     Args:
@@ -221,13 +224,12 @@ def for_count(tablename: str, column: str = '*', kws: Optional[dict] = None) -> 
     Returns:
         tuple: the query and vals
     """
-    q = f'SELECT COUNT({column}) AS total_count FROM {tablename}'
-    
+    q = f"SELECT COUNT({column}) AS total_count FROM {tablename}"
+
     vals = ()
     if kws:
         keys, vals = zip(*kws.items())
-        placeholders = ', '.join(f'{k} = ?' for k in keys)
-        q += f' WHERE {placeholders};'
-        
-    return q, vals
+        placeholders = ", ".join(f"{k} = ?" for k in keys)
+        q += f" WHERE {placeholders};"
 
+    return q, vals

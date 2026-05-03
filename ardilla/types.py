@@ -1,9 +1,7 @@
-
 import sys
 from datetime import date, datetime, time
 import types
 import typing
-
 
 FIELD_MAPPING: dict[type, str] = {
     int: "INTEGER",
@@ -41,6 +39,7 @@ def get_annotation_type(annotation) -> type | None:
             return None
         return origin
     return annotation
+
 
 def check_type_annotation(annotation) -> bool:
     type_ = get_annotation_type(annotation)
