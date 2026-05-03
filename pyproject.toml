@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ardilla"
-version = "0.4.0-beta"
+version = "0.5.0-beta"
 authors = [
   { name="ChrisDewa", email="chrisdewa@duck.com" },
 ]
@@ -18,32 +18,34 @@ classifiers = [
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
   "Development Status :: 4 - Beta",
 ]
 dependencies = [
-  "pydantic==1.10.7",
+  "pydantic>=2.0",
 ]
 
 
 [project.optional-dependencies]
-async = ["aiosqlite==0.19.0",]
+async = ["aiosqlite>=0.19",]
 
 examples = [
-  "fastapi==0.95.1", 
-  "uvicorn==0.22.0"
+  "fastapi>=0.100",
+  "uvicorn>=0.23",
 ]
 
 dev = [
-  "pytest==7.3.1", # testing
-  "pytest-asyncio==0.21.0", # testing async
-  "black==23.3.0", # formating
+  "pytest>=7.4",
+  "pytest-asyncio>=0.23",
+  "black>=24",
 ]
 docs = [
-  "mkdocs==1.4.3",
-  "jinja2<3.1.0",
-  "mkdocstrings[python]==0.21.2",
+  "mkdocs>=1.5",
+  "mkdocstrings[python]>=0.24",
+  "pymdown-extensions>=10.14",
 ]
 
 [project.urls]

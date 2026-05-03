@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Ardilla is specifically desiged to ease of use with intermedium developers in mind. 
+Ardilla is specifically designed to ease of use with intermediate developers in mind. 
 The library help you abstract SQLite interactions in a simple pythonic way.
 
 There is a clear tradeoff in flexibility and performace. If you require more complex database designs or interactions or a more performant solution, please take a look at [alternative libraries](../ardilla_alternatives.md).
@@ -119,7 +119,7 @@ author_crud.save_one(douglas_adams)
 ## Deleting
 
 ```py
-author_crud.delete(douglas_adams)
+author_crud.delete_one(douglas_adams)
 # we also delete all books linked to the author
 george_orwell_id = 3
 orwell_books = book_crud.get_many(author_id=george_orwell_id)
