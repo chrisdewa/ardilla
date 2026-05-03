@@ -6,6 +6,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.5.1-beta] - 2026-05-03
+
+### Added
+
+- Explicit ISO-format SQLite adapters for `date`, `time`, and `datetime` registered in
+  `ardilla/__init__.py` so all three types round-trip correctly on every supported Python
+  version, including Python 3.14+, which removed the built-in `time` adapter.
+- `test_ordering.py` — comprehensive unit tests for `validate_ordering`.
+- Type round-trip tests (sync and async) covering `bool`, `float`, `bytes`, `date`, and `time`.
+- FK referential-action tests: `RESTRICT` prevents parent deletion while child rows exist;
+  `SET_NULL` nulls the FK column on the child when the parent is deleted (sync and async).
+- Regression test for `delete_many` with a non-`id` primary key.
+- Additional coverage: `insert_or_ignore` idempotency, `get_many` with `order_by` + `limit`,
+  `get_or_create` return-value correctness, `count` with column and filter kwargs, and empty
+  `save_many` / `delete_many` error paths.
+
+### Changed
+
+- `ForeignField` is now a proper `pydantic.fields.FieldInfo` subclass instead of a
+  callable helper instance, improving IDE support and static-analysis accuracy.
+- `Field()` return type narrowed from `Any` to `FieldInfo`.
+- `_PK_KEYS` and `_ARDILLA_KEYS` are now `frozenset` instead of plain `set`.
+
+### Fixed
+
+- `for_delete_many` in `ardilla/queries.py` was hardcoding `WHERE id IN (...)` instead of
+  using the model's actual `__pk__` column, causing incorrect deletes for models whose
+  primary key column is not named `id`.
+
+### Documentation
+
+- README and API-reference docs updated for the pydantic v2 API.
+- LICENCE year updated.
+
+---
+
 ## [0.5.0-beta] - 2026-04-27
 
 ### Added
