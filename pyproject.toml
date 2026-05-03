@@ -45,6 +45,7 @@ dev = [
 docs = [
   "mkdocs>=1.5",
   "mkdocstrings[python]>=0.24",
+  "pymdown-extensions>=10.14",
 ]
 
 [project.urls]
