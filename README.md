@@ -1,3 +1,5 @@
+
+
 # ardilla
 
 [![Downloads](https://static.pepy.tech/badge/ardilla/month)](https://pepy.tech/project/ardilla) ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/ardilla) ![PyPI](https://img.shields.io/pypi/v/ardilla) ![GitHub](https://img.shields.io/github/license/chrisdewa/ardilla) [![Documentation Status](https://readthedocs.org/projects/ardilla/badge/?version=latest)](https://ardilla.readthedocs.io/en/latest/?badge=latest)
@@ -37,6 +39,7 @@ Install the latest release from PyPI:
 pip install -U ardilla
 pip install -U ardilla[async]  # includes aiosqlite
 pip install -U ardilla[dev]    # includes formatting and testing dependencies
+pip install -U ardilla[examples]  # includes fastapi and uvicorn for the examples
 ```
 
 Or install the latest changes directly from GitHub:
